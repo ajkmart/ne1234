@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as StoreReview from "expo-store-review";
+import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import React, { useState } from "react";
 import {
   Platform,
@@ -32,7 +33,9 @@ const ASPECTS = [
   { id: "variety", label: "Product Variety", icon: "grid-outline" },
 ];
 
-export default function RateAppScreen() {
+export default withErrorBoundary(RateAppScreenInner);
+
+function RateAppScreenInner() {
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const { showToast } = useToast();
@@ -54,15 +57,17 @@ export default function RateAppScreen() {
     const url = Platform.OS === "ios" ? APP_STORE_URL : PLAY_STORE_URL;
     const ok = await Linking.canOpenURL(url).catch(() => false);
     if (ok) {
-      Linking.openURL(url).catch(() => showToast("Could not open app store", "error"));
+      Linking.openURL(url).catch(() =>
+        showToast("Could not open app store", "error"),
+      );
     } else {
       showToast("Thank you for your rating!", "success");
     }
   };
 
   const toggleAspect = (id: string) => {
-    setSelectedAspects(prev =>
-      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
+    setSelectedAspects((prev) =>
+      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id],
     );
   };
 
@@ -83,7 +88,11 @@ export default function RateAppScreen() {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <TouchableOpacity activeOpacity={0.7} onPress={goBack} style={styles.backBtn}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={goBack}
+            style={styles.backBtn}
+          >
             <Ionicons name="arrow-back" size={22} color={C.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Rate the App</Text>
@@ -93,7 +102,8 @@ export default function RateAppScreen() {
           <LinearGradient
             colors={[C.primarySoft, C.infoSoft]}
             style={styles.thankYouCard}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
           >
             <View style={styles.thankYouIconWrap}>
               <Ionicons name="heart" size={52} color={C.primary} />
@@ -102,15 +112,23 @@ export default function RateAppScreen() {
             <Text style={styles.thankYouSub}>
               {rating >= 4
                 ? `Your support means the world to us. We're glad you love ${appName}!`
-                : `Your feedback helps us improve ${appName}. We'll work hard to make your experience better!`
-              }
+                : `Your feedback helps us improve ${appName}. We'll work hard to make your experience better!`}
             </Text>
             <View style={styles.starsRow}>
-              {[1,2,3,4,5].map(i => (
-                <Ionicons key={i} name={i <= rating ? "star" : "star-outline"} size={28} color={C.gold} />
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Ionicons
+                  key={i}
+                  name={i <= rating ? "star" : "star-outline"}
+                  size={28}
+                  color={C.gold}
+                />
               ))}
             </View>
-            <TouchableOpacity activeOpacity={0.7} onPress={goBack} style={styles.doneBtn}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={goBack}
+              style={styles.doneBtn}
+            >
               <Text style={styles.doneBtnTxt}>Done</Text>
             </TouchableOpacity>
           </LinearGradient>
@@ -122,30 +140,40 @@ export default function RateAppScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity activeOpacity={0.7} onPress={goBack} style={styles.backBtn}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={goBack}
+          style={styles.backBtn}
+        >
           <Ionicons name="arrow-back" size={22} color={C.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Rate the App</Text>
         <View style={{ width: 38 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+      >
         <LinearGradient
           colors={["#0047B3", "#0066FF"]}
           style={styles.heroBanner}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
         >
           <View style={styles.heroIconWrap}>
             <Ionicons name="storefront" size={48} color="#fff" />
           </View>
           <Text style={styles.heroTitle}>{appName}</Text>
-          <Text style={styles.heroSub}>How would you rate your experience?</Text>
+          <Text style={styles.heroSub}>
+            How would you rate your experience?
+          </Text>
         </LinearGradient>
 
         <View style={styles.ratingCard}>
           <Text style={styles.sectionTitle}>Your Rating</Text>
           <View style={styles.starsRow}>
-            {[1,2,3,4,5].map(i => (
+            {[1, 2, 3, 4, 5].map((i) => (
               <TouchableOpacity
                 key={i}
                 activeOpacity={0.7}
@@ -164,7 +192,15 @@ export default function RateAppScreen() {
           </View>
           {rating > 0 && (
             <Text style={styles.ratingLabel}>
-              {rating === 1 ? "Poor" : rating === 2 ? "Fair" : rating === 3 ? "Good" : rating === 4 ? "Great" : "Excellent!"}
+              {rating === 1
+                ? "Poor"
+                : rating === 2
+                  ? "Fair"
+                  : rating === 3
+                    ? "Good"
+                    : rating === 4
+                      ? "Great"
+                      : "Excellent!"}
             </Text>
           )}
         </View>
@@ -172,21 +208,36 @@ export default function RateAppScreen() {
         {rating > 0 && (
           <>
             <View style={styles.aspectsCard}>
-              <Text style={styles.sectionTitle}>What did you like? (optional)</Text>
+              <Text style={styles.sectionTitle}>
+                What did you like? (optional)
+              </Text>
               <View style={styles.aspectsGrid}>
-                {ASPECTS.map(a => (
+                {ASPECTS.map((a) => (
                   <TouchableOpacity
                     key={a.id}
                     activeOpacity={0.7}
                     onPress={() => toggleAspect(a.id)}
-                    style={[styles.aspectChip, selectedAspects.includes(a.id) && styles.aspectChipActive]}
+                    style={[
+                      styles.aspectChip,
+                      selectedAspects.includes(a.id) && styles.aspectChipActive,
+                    ]}
                   >
                     <Ionicons
                       name={a.icon as any}
                       size={14}
-                      color={selectedAspects.includes(a.id) ? "#fff" : C.textSecondary}
+                      color={
+                        selectedAspects.includes(a.id)
+                          ? "#fff"
+                          : C.textSecondary
+                      }
                     />
-                    <Text style={[styles.aspectTxt, selectedAspects.includes(a.id) && styles.aspectTxtActive]}>
+                    <Text
+                      style={[
+                        styles.aspectTxt,
+                        selectedAspects.includes(a.id) &&
+                          styles.aspectTxtActive,
+                      ]}
+                    >
                       {a.label}
                     </Text>
                   </TouchableOpacity>
@@ -200,7 +251,9 @@ export default function RateAppScreen() {
                 style={styles.feedbackInput}
                 value={feedback}
                 onChangeText={setFeedback}
-                placeholder={rating >= 4 ? "What do you love most?" : "How can we improve?"}
+                placeholder={
+                  rating >= 4 ? "What do you love most?" : "How can we improve?"
+                }
                 placeholderTextColor={C.textMuted}
                 multiline
                 numberOfLines={4}
@@ -220,14 +273,24 @@ export default function RateAppScreen() {
         >
           <Ionicons name="star" size={18} color="#fff" />
           <Text style={styles.submitBtnTxt}>
-            {rating >= 4 ? "Submit & Rate on Store" : rating > 0 ? "Submit Feedback" : "Select a Rating First"}
+            {rating >= 4
+              ? "Submit & Rate on Store"
+              : rating > 0
+                ? "Submit Feedback"
+                : "Select a Rating First"}
           </Text>
         </TouchableOpacity>
 
         {rating >= 4 && (
           <View style={styles.storeHint}>
-            <Ionicons name="information-circle-outline" size={14} color={C.textMuted} />
-            <Text style={styles.storeHintTxt}>This will open the app store where you can leave a review.</Text>
+            <Ionicons
+              name="information-circle-outline"
+              size={14}
+              color={C.textMuted}
+            />
+            <Text style={styles.storeHintTxt}>
+              This will open the app store where you can leave a review.
+            </Text>
           </View>
         )}
 
@@ -240,96 +303,189 @@ export default function RateAppScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: {
-    flexDirection: "row", alignItems: "center", gap: spacing.md,
-    paddingHorizontal: spacing.lg, paddingVertical: 12,
-    backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.borderLight, ...shadows.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+    backgroundColor: C.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: C.borderLight,
+    ...shadows.sm,
   },
   backBtn: {
-    width: 38, height: 38, borderRadius: radii.md,
-    alignItems: "center", justifyContent: "center",
+    width: 38,
+    height: 38,
+    borderRadius: radii.md,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: C.surfaceSecondary,
   },
   headerTitle: { flex: 1, fontFamily: Font.bold, fontSize: 16, color: C.text },
   scroll: { paddingBottom: 24 },
   heroBanner: {
-    alignItems: "center", justifyContent: "center",
-    paddingVertical: 36, paddingHorizontal: 24, gap: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 36,
+    paddingHorizontal: 24,
+    gap: 12,
   },
   heroIconWrap: {
-    width: 80, height: 80, borderRadius: 40,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center", justifyContent: "center",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 8,
   },
   heroTitle: { fontFamily: Font.bold, fontSize: 24, color: "#fff" },
-  heroSub: { fontFamily: Font.regular, fontSize: 14, color: "rgba(255,255,255,0.85)", textAlign: "center" },
+  heroSub: {
+    fontFamily: Font.regular,
+    fontSize: 14,
+    color: "rgba(255,255,255,0.85)",
+    textAlign: "center",
+  },
   ratingCard: {
-    backgroundColor: C.surface, marginHorizontal: spacing.lg, marginTop: spacing.lg,
-    borderRadius: radii.xl, padding: 20, ...shadows.sm,
-    borderWidth: 1, borderColor: C.borderLight,
+    backgroundColor: C.surface,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    borderRadius: radii.xl,
+    padding: 20,
+    ...shadows.sm,
+    borderWidth: 1,
+    borderColor: C.borderLight,
     alignItems: "center",
   },
-  sectionTitle: { fontFamily: Font.bold, fontSize: 15, color: C.text, marginBottom: 16, alignSelf: "flex-start" },
+  sectionTitle: {
+    fontFamily: Font.bold,
+    fontSize: 15,
+    color: C.text,
+    marginBottom: 16,
+    alignSelf: "flex-start",
+  },
   starsRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
   starBtn: { padding: 4 },
   ratingLabel: { fontFamily: Font.bold, fontSize: 16, color: C.gold },
   aspectsCard: {
-    backgroundColor: C.surface, marginHorizontal: spacing.lg, marginTop: spacing.md,
-    borderRadius: radii.xl, padding: 20, ...shadows.sm,
-    borderWidth: 1, borderColor: C.borderLight,
+    backgroundColor: C.surface,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    borderRadius: radii.xl,
+    padding: 20,
+    ...shadows.sm,
+    borderWidth: 1,
+    borderColor: C.borderLight,
   },
   aspectsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   aspectChip: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: radii.full,
-    backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radii.full,
+    backgroundColor: C.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: C.border,
   },
   aspectChipActive: { backgroundColor: C.primary, borderColor: C.primary },
   aspectTxt: { fontFamily: Font.medium, fontSize: 12, color: C.textSecondary },
   aspectTxtActive: { color: "#fff" },
   feedbackCard: {
-    backgroundColor: C.surface, marginHorizontal: spacing.lg, marginTop: spacing.md,
-    borderRadius: radii.xl, padding: 20, ...shadows.sm,
-    borderWidth: 1, borderColor: C.borderLight,
+    backgroundColor: C.surface,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    borderRadius: radii.xl,
+    padding: 20,
+    ...shadows.sm,
+    borderWidth: 1,
+    borderColor: C.borderLight,
   },
   feedbackInput: {
-    fontFamily: Font.regular, fontSize: 14, color: C.text,
-    backgroundColor: C.surfaceSecondary, borderRadius: radii.xl,
-    paddingHorizontal: 14, paddingVertical: 12,
-    borderWidth: 1, borderColor: C.border,
+    fontFamily: Font.regular,
+    fontSize: 14,
+    color: C.text,
+    backgroundColor: C.surfaceSecondary,
+    borderRadius: radii.xl,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: C.border,
     minHeight: 100,
   },
-  charCount: { fontFamily: Font.regular, fontSize: 11, color: C.textMuted, textAlign: "right", marginTop: 6 },
+  charCount: {
+    fontFamily: Font.regular,
+    fontSize: 11,
+    color: C.textMuted,
+    textAlign: "right",
+    marginTop: 6,
+  },
   submitBtn: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    marginHorizontal: spacing.lg, marginTop: spacing.lg,
-    backgroundColor: C.primary, borderRadius: radii.xl,
-    paddingVertical: 16, justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    backgroundColor: C.primary,
+    borderRadius: radii.xl,
+    paddingVertical: 16,
+    justifyContent: "center",
   },
   submitBtnDisabled: { backgroundColor: C.border },
   submitBtnTxt: { fontFamily: Font.bold, fontSize: 15, color: "#fff" },
   storeHint: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    marginHorizontal: spacing.lg, marginTop: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
     paddingHorizontal: 10,
   },
-  storeHintTxt: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted, flex: 1, lineHeight: 18 },
-  thankYouWrap: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },
+  storeHintTxt: {
+    fontFamily: Font.regular,
+    fontSize: 12,
+    color: C.textMuted,
+    flex: 1,
+    lineHeight: 18,
+  },
+  thankYouWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
   thankYouCard: {
-    borderRadius: radii.xl, padding: 32, alignItems: "center", gap: 12,
-    width: "100%", ...shadows.lg,
+    borderRadius: radii.xl,
+    padding: 32,
+    alignItems: "center",
+    gap: 12,
+    width: "100%",
+    ...shadows.lg,
   },
   thankYouIconWrap: {
-    width: 96, height: 96, borderRadius: 48,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: "rgba(255,255,255,0.4)",
-    alignItems: "center", justifyContent: "center",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 8,
   },
   thankYouTitle: { fontFamily: Font.bold, fontSize: 28, color: C.text },
-  thankYouSub: { fontFamily: Font.regular, fontSize: 14, color: C.textSecondary, textAlign: "center", lineHeight: 22 },
+  thankYouSub: {
+    fontFamily: Font.regular,
+    fontSize: 14,
+    color: C.textSecondary,
+    textAlign: "center",
+    lineHeight: 22,
+  },
   doneBtn: {
-    backgroundColor: C.primary, paddingHorizontal: 40, paddingVertical: 14,
-    borderRadius: radii.xl, marginTop: 12,
+    backgroundColor: C.primary,
+    paddingHorizontal: 40,
+    paddingVertical: 14,
+    borderRadius: radii.xl,
+    marginTop: 12,
   },
   doneBtnTxt: { fontFamily: Font.bold, fontSize: 15, color: "#fff" },
 });

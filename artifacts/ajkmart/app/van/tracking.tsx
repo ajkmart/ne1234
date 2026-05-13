@@ -2,7 +2,11 @@ import React, { useEffect, useState, useRef } from "react";
 import { createLogger } from "@/utils/logger";
 const log = createLogger("[van-tracking]");
 import {
-  TouchableOpacity, StyleSheet, Text, View, Platform,
+  TouchableOpacity,
+  StyleSheet,
+  Text,
+  View,
+  Platform,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
@@ -11,8 +15,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { Font } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
+import { SOCKET_BASE } from "@/utils/api";
 
-const SOCKET_URL = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+const SOCKET_URL = SOCKET_BASE;
 
 interface VanLocation {
   latitude: number;
@@ -23,7 +28,12 @@ interface VanLocation {
   stopsAway?: number;
 }
 
-function buildMapHtml(vanLat: number, vanLng: number, pickupLat: number, pickupLng: number) {
+function buildMapHtml(
+  vanLat: number,
+  vanLng: number,
+  pickupLat: number,
+  pickupLng: number,
+) {
   return `<!DOCTYPE html>
 <html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
@@ -63,7 +73,15 @@ document.addEventListener('message',handleMsg);
 <\/script></body></html>`;
 }
 
-function TrackingMap({ location, pickupLat, pickupLng }: { location: VanLocation | null; pickupLat: number; pickupLng: number }) {
+function TrackingMap({
+  location,
+  pickupLat,
+  pickupLng,
+}: {
+  location: VanLocation | null;
+  pickupLat: number;
+  pickupLng: number;
+}) {
   const vanLat = location?.latitude ?? pickupLat;
   const vanLng = location?.longitude ?? pickupLng;
 
@@ -81,8 +99,12 @@ function TrackingMap({ location, pickupLat, pickupLng }: { location: VanLocation
         // so "*" is the correct and safe targetOrigin — there is no sensitive
         // cross-origin document to leak data to.
         iframeRef.current.contentWindow.postMessage(
-          JSON.stringify({ type: "vanPos", lat: location.latitude, lng: location.longitude }),
-          "*"
+          JSON.stringify({
+            type: "vanPos",
+            lat: location.latitude,
+            lng: location.longitude,
+          }),
+          "*",
         );
       }
     }, [location?.latitude, location?.longitude]);
@@ -91,7 +113,12 @@ function TrackingMap({ location, pickupLat, pickupLng }: { location: VanLocation
       <iframe
         ref={iframeRef}
         srcDoc={html}
-        style={{ width: "100%", height: "100%", border: "none", borderRadius: 20 }}
+        style={{
+          width: "100%",
+          height: "100%",
+          border: "none",
+          borderRadius: 20,
+        }}
         sandbox="allow-scripts"
         title="Van Tracking Map"
       />
@@ -109,7 +136,11 @@ function TrackingMap({ location, pickupLat, pickupLng }: { location: VanLocation
   useEffect(() => {
     if (location && webViewRef.current) {
       webViewRef.current.postMessage(
-        JSON.stringify({ type: "vanPos", lat: location.latitude, lng: location.longitude })
+        JSON.stringify({
+          type: "vanPos",
+          lat: location.latitude,
+          lng: location.longitude,
+        }),
       );
     }
   }, [location?.latitude, location?.longitude]);
@@ -127,25 +158,31 @@ function TrackingMap({ location, pickupLat, pickupLng }: { location: VanLocation
   );
 }
 
-function getStatusMessage(location: VanLocation | null, stopsAway?: number): { title: string; subtitle: string } {
+function getStatusMessage(
+  location: VanLocation | null,
+  stopsAway?: number,
+): { title: string; subtitle: string } {
   if (!location) {
-    return { title: "Waiting for departure", subtitle: "The driver has not started the trip yet" };
+    return {
+      title: "Waiting for departure",
+      subtitle: "The driver has not started the trip yet",
+    };
   }
   if (stopsAway != null && stopsAway > 0) {
     return {
       title: `Van is ${stopsAway} stop${stopsAway > 1 ? "s" : ""} away`,
-      subtitle: `Moving at ${location.speed != null && location.speed > 0 ? (location.speed * 3.6).toFixed(0) + " km/h" : "standby"}`
+      subtitle: `Moving at ${location.speed != null && location.speed > 0 ? (location.speed * 3.6).toFixed(0) + " km/h" : "standby"}`,
     };
   }
   if (location.speed != null && location.speed > 1) {
     return {
       title: "Van is on the way",
-      subtitle: `Speed: ${(location.speed * 3.6).toFixed(0)} km/h · Last: ${new Date(location.updatedAt).toLocaleTimeString()}`
+      subtitle: `Speed: ${(location.speed * 3.6).toFixed(0)} km/h · Last: ${new Date(location.updatedAt).toLocaleTimeString()}`,
     };
   }
   return {
     title: "Van is nearby",
-    subtitle: `Last update: ${new Date(location.updatedAt).toLocaleTimeString()}`
+    subtitle: `Last update: ${new Date(location.updatedAt).toLocaleTimeString()}`,
   };
 }
 
@@ -153,7 +190,12 @@ export default function VanTrackingScreen() {
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const topPad = Math.max(insets.top, 12);
-  const params = useLocalSearchParams<{ scheduleId: string; date: string; pickupLat: string; pickupLng: string }>();
+  const params = useLocalSearchParams<{
+    scheduleId: string;
+    date: string;
+    pickupLat: string;
+    pickupLng: string;
+  }>();
   const { scheduleId, date } = params;
   const pickupLat = parseFloat(params.pickupLat || "0") || 33.6844;
   const pickupLng = parseFloat(params.pickupLng || "0") || 73.0479;
@@ -181,8 +223,12 @@ export default function VanTrackingScreen() {
           auth: { token: token || "" },
         });
 
-        io.on("connect", () => { if (mounted) setConnected(true); });
-        io.on("disconnect", () => { if (mounted) setConnected(false); });
+        io.on("connect", () => {
+          if (mounted) setConnected(true);
+        });
+        io.on("disconnect", () => {
+          if (mounted) setConnected(false);
+        });
 
         io.on("van:location", (data: VanLocation) => {
           if (mounted) {
@@ -191,12 +237,15 @@ export default function VanTrackingScreen() {
           }
         });
 
-        io.on("van:trip-update", (data: { event: string; stopsAway?: number }) => {
-          if (mounted) {
-            if (data.event === "trip_completed") setTripStatus("completed");
-            if (data.stopsAway != null) setStopsAway(data.stopsAway);
-          }
-        });
+        io.on(
+          "van:trip-update",
+          (data: { event: string; stopsAway?: number }) => {
+            if (mounted) {
+              if (data.event === "trip_completed") setTripStatus("completed");
+              if (data.stopsAway != null) setStopsAway(data.stopsAway);
+            }
+          },
+        );
       } catch (err) {
         log.warn("Socket connection failed:", err);
       }
@@ -213,17 +262,31 @@ export default function VanTrackingScreen() {
 
   return (
     <View style={ss.root}>
-      <LinearGradient colors={["#4338CA","#6366F1","#818CF8"]} start={{x:0,y:0}} end={{x:1,y:1}}
-        style={[ss.header, { paddingTop: topPad + 14 }]}>
+      <LinearGradient
+        colors={["#4338CA", "#6366F1", "#818CF8"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[ss.header, { paddingTop: topPad + 14 }]}
+      >
         <View style={ss.headerRow}>
-          <TouchableOpacity activeOpacity={0.7} onPress={goBack} style={ss.backBtn} hitSlop={12}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={goBack}
+            style={ss.backBtn}
+            hitSlop={12}
+          >
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={ss.headerTitle}>Live Van Tracking</Text>
             <Text style={ss.headerSub}>{date}</Text>
           </View>
-          <View style={[ss.connectionDot, { backgroundColor: connected ? "#22C55E" : "#EF4444" }]} />
+          <View
+            style={[
+              ss.connectionDot,
+              { backgroundColor: connected ? "#22C55E" : "#EF4444" },
+            ]}
+          />
         </View>
       </LinearGradient>
 
@@ -232,15 +295,25 @@ export default function VanTrackingScreen() {
           <View style={ss.statusCard}>
             <Ionicons name="checkmark-done-circle" size={48} color="#16A34A" />
             <Text style={ss.statusTitle}>Trip Completed</Text>
-            <Text style={ss.statusDesc}>Your van trip has been completed. Thank you for riding with us!</Text>
-            <TouchableOpacity activeOpacity={0.7} style={ss.btnPrimary} onPress={goBack}>
+            <Text style={ss.statusDesc}>
+              Your van trip has been completed. Thank you for riding with us!
+            </Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={ss.btnPrimary}
+              onPress={goBack}
+            >
               <Text style={ss.btnPrimaryText}>Back to Bookings</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
             <View style={ss.mapContainer}>
-              <TrackingMap location={location} pickupLat={pickupLat} pickupLng={pickupLng} />
+              <TrackingMap
+                location={location}
+                pickupLat={pickupLat}
+                pickupLng={pickupLng}
+              />
             </View>
 
             <View style={ss.statusBar}>
@@ -261,13 +334,21 @@ export default function VanTrackingScreen() {
 
             <View style={ss.pickupInfo}>
               <Ionicons name="location" size={16} color="#EF4444" />
-              <Text style={ss.pickupText}>Your pickup point is marked on the map</Text>
+              <Text style={ss.pickupText}>
+                Your pickup point is marked on the map
+              </Text>
             </View>
 
             {!connected && (
               <View style={ss.offlineBanner}>
-                <Ionicons name="cloud-offline-outline" size={16} color="#DC2626" />
-                <Text style={ss.offlineText}>Reconnecting to live tracking...</Text>
+                <Ionicons
+                  name="cloud-offline-outline"
+                  size={16}
+                  color="#DC2626"
+                />
+                <Text style={ss.offlineText}>
+                  Reconnecting to live tracking...
+                </Text>
               </View>
             )}
           </>
@@ -283,24 +364,120 @@ const ss = StyleSheet.create({
   headerRow: { flexDirection: "row", alignItems: "center" },
   backBtn: { padding: 4 },
   headerTitle: { fontFamily: Font.bold, fontSize: 20, color: "#fff" },
-  headerSub: { fontFamily: Font.regular, fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 2 },
+  headerSub: {
+    fontFamily: Font.regular,
+    fontSize: 13,
+    color: "rgba(255,255,255,0.8)",
+    marginTop: 2,
+  },
   connectionDot: { width: 10, height: 10, borderRadius: 5 },
   content: { flex: 1, padding: 16 },
-  mapContainer: { flex: 1, borderRadius: 20, overflow: "hidden", marginBottom: 16, minHeight: 300, ...Platform.select({ web: { boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }, default: { shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 12, elevation: 4 } }) },
-  statusBar: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", borderRadius: 16, padding: 16, gap: 12, marginBottom: 12, ...Platform.select({ web: { boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }, default: { shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 } }) },
-  statusBarIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" },
+  mapContainer: {
+    flex: 1,
+    borderRadius: 20,
+    overflow: "hidden",
+    marginBottom: 16,
+    minHeight: 300,
+    ...Platform.select({
+      web: { boxShadow: "0 4px 12px rgba(0,0,0,0.06)" },
+      default: {
+        shadowColor: "#000",
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+        elevation: 4,
+      },
+    }),
+  },
+  statusBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    marginBottom: 12,
+    ...Platform.select({
+      web: { boxShadow: "0 2px 8px rgba(0,0,0,0.04)" },
+      default: {
+        shadowColor: "#000",
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        elevation: 2,
+      },
+    }),
+  },
+  statusBarIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#EEF2FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   statusBarTitle: { fontFamily: Font.semiBold, fontSize: 15, color: "#111827" },
-  statusBarSub: { fontFamily: Font.regular, fontSize: 12, color: "#6B7280", marginTop: 2 },
-  liveBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#DCFCE7", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  liveIndicator: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#16A34A" },
+  statusBarSub: {
+    fontFamily: Font.regular,
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  liveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  liveIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#16A34A",
+  },
   liveText: { fontFamily: Font.bold, fontSize: 10, color: "#16A34A" },
-  pickupInfo: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#FFF7ED", borderRadius: 12, padding: 12, marginBottom: 12 },
+  pickupInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FFF7ED",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
   pickupText: { fontFamily: Font.regular, fontSize: 13, color: "#C2410C" },
-  offlineBanner: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#FEF2F2", borderRadius: 12, padding: 12, marginBottom: 12 },
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#FEF2F2",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
   offlineText: { fontFamily: Font.regular, fontSize: 13, color: "#DC2626" },
-  statusCard: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
+  statusCard: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
   statusTitle: { fontFamily: Font.bold, fontSize: 20, color: "#16A34A" },
-  statusDesc: { fontFamily: Font.regular, fontSize: 14, color: "#6B7280", textAlign: "center" },
-  btnPrimary: { backgroundColor: "#6366F1", borderRadius: 14, paddingHorizontal: 24, paddingVertical: 14, alignItems: "center", marginTop: 16 },
+  statusDesc: {
+    fontFamily: Font.regular,
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+  },
+  btnPrimary: {
+    backgroundColor: "#6366F1",
+    borderRadius: 14,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 16,
+  },
   btnPrimaryText: { fontFamily: Font.bold, fontSize: 15, color: "#fff" },
 });

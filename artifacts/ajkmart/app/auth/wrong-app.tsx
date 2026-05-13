@@ -1,14 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useAuth, hasRole } from "@/context/AuthContext";
+import { API_BASE } from "@/utils/api";
 
 const C = Colors.light;
-const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}/api`;
 
 export default function WrongAppScreen() {
   const insets = useSafeAreaInsets();
@@ -18,9 +24,11 @@ export default function WrongAppScreen() {
 
   const primaryRole = (user?.roles ?? [])[0];
   const roleLabel =
-    primaryRole === "rider" ? "Delivery Rider" :
-    primaryRole === "vendor" ? "Store Vendor" :
-    "non-customer";
+    primaryRole === "rider"
+      ? "Delivery Rider"
+      : primaryRole === "vendor"
+        ? "Store Vendor"
+        : "non-customer";
 
   const canAddCustomerRole = user && !hasRole(user, "customer");
 
@@ -44,20 +52,29 @@ export default function WrongAppScreen() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setAddRoleError(data.error || "Failed to add customer access. Please try again.");
+        setAddRoleError(
+          data.error || "Failed to add customer access. Please try again.",
+        );
         return;
       }
       updateUser({ roles: data.data?.roles ?? data.roles ?? [] });
       router.replace("/(tabs)");
     } catch {
-      setAddRoleError("Network error. Please check your connection and try again.");
+      setAddRoleError(
+        "Network error. Please check your connection and try again.",
+      );
     } finally {
       setAddingRole(false);
     }
   };
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}>
+    <View
+      style={[
+        styles.root,
+        { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 },
+      ]}
+    >
       <View style={styles.iconWrap}>
         <Ionicons name="alert-circle" size={56} color={C.amber} />
       </View>
@@ -72,8 +89,8 @@ export default function WrongAppScreen() {
         {hasRole(user, "rider")
           ? "Please use the AJKMart Rider App to manage your deliveries."
           : hasRole(user, "vendor")
-          ? "Please use the AJKMart Vendor App to manage your store."
-          : "Please sign in with a customer account to continue."}
+            ? "Please use the AJKMart Vendor App to manage your store."
+            : "Please sign in with a customer account to continue."}
       </Text>
 
       {canAddCustomerRole && (
@@ -94,11 +111,10 @@ export default function WrongAppScreen() {
               </>
             )}
           </TouchableOpacity>
-          {addRoleError && (
-            <Text style={styles.errorTxt}>{addRoleError}</Text>
-          )}
+          {addRoleError && <Text style={styles.errorTxt}>{addRoleError}</Text>}
           <Text style={styles.addRoleHint}>
-            This will add customer access to your existing account — you can still use the Rider/Vendor app.
+            This will add customer access to your existing account — you can
+            still use the Rider/Vendor app.
           </Text>
         </>
       )}

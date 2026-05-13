@@ -21,11 +21,11 @@ import Colors, { spacing, radii, shadows } from "@/constants/colors";
 import { Font } from "@/constants/typography";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
-import { API_BASE } from "@/utils/api";
+import { API_BASE, SOCKET_BASE } from "@/utils/api";
 import { useSmartBack } from "@/hooks/useSmartBack";
 
 const C = Colors.light;
-const SOCKET_URL = API_BASE.replace("/api", "");
+const SOCKET_URL = SOCKET_BASE;
 
 interface Message {
   id: string;

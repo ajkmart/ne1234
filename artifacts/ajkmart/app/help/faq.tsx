@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState, useCallback, useMemo } from "react";
+import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import {
   ActivityIndicator,
   ScrollView,
@@ -30,7 +31,7 @@ function FAQItem({ faq }: { faq: FAQ }) {
   return (
     <TouchableOpacity
       activeOpacity={0.7}
-      onPress={() => setExpanded(p => !p)}
+      onPress={() => setExpanded((p) => !p)}
       style={styles.faqItem}
       accessibilityRole="button"
       accessibilityLabel={faq.question}
@@ -39,7 +40,11 @@ function FAQItem({ faq }: { faq: FAQ }) {
       <View style={styles.faqHeader}>
         <Text style={styles.faqQ}>{faq.question}</Text>
         <View style={[styles.chevronWrap, expanded && styles.chevronWrapOpen]}>
-          <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={C.primary} />
+          <Ionicons
+            name={expanded ? "chevron-up" : "chevron-down"}
+            size={16}
+            color={C.primary}
+          />
         </View>
       </View>
       {expanded && (
@@ -51,7 +56,9 @@ function FAQItem({ faq }: { faq: FAQ }) {
   );
 }
 
-export default function FAQScreen() {
+export default withErrorBoundary(FAQScreenInner);
+
+function FAQScreenInner() {
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const [search, setSearch] = useState("");
@@ -70,18 +77,20 @@ export default function FAQScreen() {
   const faqs: FAQ[] = data?.faqs || [];
 
   const categories = useMemo(() => {
-    const cats = Array.from(new Set(faqs.map(f => f.category)));
+    const cats = Array.from(new Set(faqs.map((f) => f.category)));
     return cats;
   }, [faqs]);
 
   const filtered = useMemo(() => {
     let result = faqs;
-    if (activeCategory) result = result.filter(f => f.category === activeCategory);
+    if (activeCategory)
+      result = result.filter((f) => f.category === activeCategory);
     if (search.trim()) {
       const q = search.toLowerCase();
-      result = result.filter(f =>
-        f.question.toLowerCase().includes(q) ||
-        f.answer.toLowerCase().includes(q)
+      result = result.filter(
+        (f) =>
+          f.question.toLowerCase().includes(q) ||
+          f.answer.toLowerCase().includes(q),
       );
     }
     return result;
@@ -99,7 +108,11 @@ export default function FAQScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity activeOpacity={0.7} onPress={goBack} style={styles.backBtn}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={goBack}
+          style={styles.backBtn}
+        >
           <Ionicons name="arrow-back" size={22} color={C.text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
@@ -132,9 +145,17 @@ export default function FAQScreen() {
         </View>
       ) : isError ? (
         <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={48} color={C.textMuted} />
+          <Ionicons
+            name="cloud-offline-outline"
+            size={48}
+            color={C.textMuted}
+          />
           <Text style={styles.emptyTitle}>Could not load FAQs</Text>
-          <TouchableOpacity activeOpacity={0.7} onPress={() => refetch()} style={styles.retryBtn}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => refetch()}
+            style={styles.retryBtn}
+          >
             <Ionicons name="refresh-outline" size={16} color="#fff" />
             <Text style={styles.retryTxt}>Retry</Text>
           </TouchableOpacity>
@@ -146,22 +167,48 @@ export default function FAQScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {categories.length > 0 && !search.trim() && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.catScroll}
+            >
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => setActiveCategory(null)}
-                style={[styles.catChip, !activeCategory && styles.catChipActive]}
+                style={[
+                  styles.catChip,
+                  !activeCategory && styles.catChipActive,
+                ]}
               >
-                <Text style={[styles.catChipTxt, !activeCategory && styles.catChipTxtActive]}>All</Text>
+                <Text
+                  style={[
+                    styles.catChipTxt,
+                    !activeCategory && styles.catChipTxtActive,
+                  ]}
+                >
+                  All
+                </Text>
               </TouchableOpacity>
-              {categories.map(cat => (
+              {categories.map((cat) => (
                 <TouchableOpacity
                   key={cat}
                   activeOpacity={0.7}
-                  onPress={() => setActiveCategory(prev => prev === cat ? null : cat)}
-                  style={[styles.catChip, activeCategory === cat && styles.catChipActive]}
+                  onPress={() =>
+                    setActiveCategory((prev) => (prev === cat ? null : cat))
+                  }
+                  style={[
+                    styles.catChip,
+                    activeCategory === cat && styles.catChipActive,
+                  ]}
                 >
-                  <Text style={[styles.catChipTxt, activeCategory === cat && styles.catChipTxtActive]}>{cat}</Text>
+                  <Text
+                    style={[
+                      styles.catChipTxt,
+                      activeCategory === cat && styles.catChipTxtActive,
+                    ]}
+                  >
+                    {cat}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -184,7 +231,9 @@ export default function FAQScreen() {
                   {items.map((faq, idx) => (
                     <View key={faq.id}>
                       <FAQItem faq={faq} />
-                      {idx < items.length - 1 && <View style={styles.divider} />}
+                      {idx < items.length - 1 && (
+                        <View style={styles.divider} />
+                      )}
                     </View>
                   ))}
                 </View>
@@ -196,7 +245,9 @@ export default function FAQScreen() {
             <Ionicons name="headset-outline" size={20} color={C.info} />
             <View style={{ flex: 1 }}>
               <Text style={styles.supportTipTitle}>Still need help?</Text>
-              <Text style={styles.supportTipSub}>Chat with our support team for personalized assistance.</Text>
+              <Text style={styles.supportTipSub}>
+                Chat with our support team for personalized assistance.
+              </Text>
             </View>
           </View>
 
@@ -210,78 +261,191 @@ export default function FAQScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: {
-    flexDirection: "row", alignItems: "center", gap: spacing.md,
-    paddingHorizontal: spacing.lg, paddingVertical: 12,
-    backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.borderLight,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 12,
+    backgroundColor: C.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: C.borderLight,
     ...shadows.sm,
   },
   backBtn: {
-    width: 38, height: 38, borderRadius: radii.md,
-    alignItems: "center", justifyContent: "center",
+    width: 38,
+    height: 38,
+    borderRadius: radii.md,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: C.surfaceSecondary,
   },
   headerTitle: { fontFamily: Font.bold, fontSize: 16, color: C.text },
-  headerSub: { fontFamily: Font.regular, fontSize: 12, color: C.textMuted, marginTop: 2 },
+  headerSub: {
+    fontFamily: Font.regular,
+    fontSize: 12,
+    color: C.textMuted,
+    marginTop: 2,
+  },
   searchWrap: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    marginHorizontal: spacing.lg, marginVertical: 12,
-    backgroundColor: C.surface, borderRadius: radii.xl,
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderWidth: 1, borderColor: C.border, ...shadows.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginHorizontal: spacing.lg,
+    marginVertical: 12,
+    backgroundColor: C.surface,
+    borderRadius: radii.xl,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: C.border,
+    ...shadows.sm,
   },
   searchInput: {
-    flex: 1, fontFamily: Font.regular, fontSize: 14, color: C.text, paddingVertical: 0,
+    flex: 1,
+    fontFamily: Font.regular,
+    fontSize: 14,
+    color: C.text,
+    paddingVertical: 0,
   },
   scroll: { paddingBottom: 0 },
   catScroll: {
-    paddingHorizontal: spacing.lg, paddingBottom: 10, gap: 8,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: 10,
+    gap: 8,
   },
   catChip: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: radii.full,
-    backgroundColor: C.surfaceSecondary, borderWidth: 1, borderColor: C.border,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: radii.full,
+    backgroundColor: C.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: C.border,
   },
   catChipActive: { backgroundColor: C.primary, borderColor: C.primary },
   catChipTxt: { fontFamily: Font.medium, fontSize: 12, color: C.textSecondary },
   catChipTxtActive: { color: "#fff" },
   categorySection: { marginHorizontal: spacing.lg, marginBottom: spacing.lg },
-  categoryHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
-  categoryDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.primary },
-  categoryTitle: { fontFamily: Font.bold, fontSize: 13, color: C.primary, letterSpacing: 0.5, textTransform: "uppercase" },
+  categoryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+  },
+  categoryDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: C.primary,
+  },
+  categoryTitle: {
+    fontFamily: Font.bold,
+    fontSize: 13,
+    color: C.primary,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
   faqCard: {
-    backgroundColor: C.surface, borderRadius: radii.xl,
-    borderWidth: 1, borderColor: C.borderLight, overflow: "hidden", ...shadows.sm,
+    backgroundColor: C.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: C.borderLight,
+    overflow: "hidden",
+    ...shadows.sm,
   },
   faqItem: { paddingHorizontal: spacing.lg, paddingVertical: 14 },
   faqHeader: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  faqQ: { flex: 1, fontFamily: Font.semiBold, fontSize: 14, color: C.text, lineHeight: 20 },
+  faqQ: {
+    flex: 1,
+    fontFamily: Font.semiBold,
+    fontSize: 14,
+    color: C.text,
+    lineHeight: 20,
+  },
   chevronWrap: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: C.primarySoft, alignItems: "center", justifyContent: "center",
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: C.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: -2,
   },
   chevronWrapOpen: { backgroundColor: C.primary },
   faqBody: {
-    marginTop: 10, backgroundColor: C.surfaceSecondary,
-    borderRadius: radii.lg, padding: 12,
+    marginTop: 10,
+    backgroundColor: C.surfaceSecondary,
+    borderRadius: radii.lg,
+    padding: 12,
   },
-  faqA: { fontFamily: Font.regular, fontSize: 13, color: C.textSecondary, lineHeight: 20 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.borderLight, marginHorizontal: spacing.lg },
+  faqA: {
+    fontFamily: Font.regular,
+    fontSize: 13,
+    color: C.textSecondary,
+    lineHeight: 20,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: C.borderLight,
+    marginHorizontal: spacing.lg,
+  },
   supportTip: {
-    flexDirection: "row", alignItems: "flex-start", gap: 12,
-    marginHorizontal: spacing.lg, marginTop: spacing.sm,
-    backgroundColor: C.infoSoft, borderRadius: radii.xl, padding: spacing.lg,
-    borderWidth: 1, borderColor: C.indigoBorder,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    backgroundColor: C.infoSoft,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: C.indigoBorder,
   },
-  supportTipTitle: { fontFamily: Font.bold, fontSize: 14, color: C.text, marginBottom: 3 },
-  supportTipSub: { fontFamily: Font.regular, fontSize: 12, color: C.textSecondary, lineHeight: 18 },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 12 },
-  emptyTitle: { fontFamily: Font.bold, fontSize: 18, color: C.text, textAlign: "center" },
-  emptySub: { fontFamily: Font.regular, fontSize: 13, color: C.textMuted, textAlign: "center" },
-  loadingTxt: { fontFamily: Font.regular, fontSize: 13, color: C.textMuted, marginTop: 8 },
+  supportTipTitle: {
+    fontFamily: Font.bold,
+    fontSize: 14,
+    color: C.text,
+    marginBottom: 3,
+  },
+  supportTipSub: {
+    fontFamily: Font.regular,
+    fontSize: 12,
+    color: C.textSecondary,
+    lineHeight: 18,
+  },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+    gap: 12,
+  },
+  emptyTitle: {
+    fontFamily: Font.bold,
+    fontSize: 18,
+    color: C.text,
+    textAlign: "center",
+  },
+  emptySub: {
+    fontFamily: Font.regular,
+    fontSize: 13,
+    color: C.textMuted,
+    textAlign: "center",
+  },
+  loadingTxt: {
+    fontFamily: Font.regular,
+    fontSize: 13,
+    color: C.textMuted,
+    marginTop: 8,
+  },
   retryBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: C.primary, paddingHorizontal: 24, paddingVertical: 12,
-    borderRadius: radii.xl, marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: C.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: radii.xl,
+    marginTop: 8,
   },
   retryTxt: { fontFamily: Font.semiBold, fontSize: 14, color: "#fff" },
 });

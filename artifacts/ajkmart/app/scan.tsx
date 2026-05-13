@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { Linking ,
+import {
+  Linking,
   ActivityIndicator,
   Platform,
   StyleSheet,
@@ -19,7 +21,9 @@ import { API_BASE } from "@/utils/api";
 
 const C = Colors.light;
 
-export default function ScanScreen() {
+export default withErrorBoundary(ScanScreenInner);
+
+function ScanScreenInner() {
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const [permission, requestPermission] = useCameraPermissions();
@@ -29,7 +33,13 @@ export default function ScanScreen() {
   const [resolving, setResolving] = useState(false);
   const scanLockRef = useRef(false);
 
-  const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
+  const handleBarCodeScanned = async ({
+    type,
+    data,
+  }: {
+    type: string;
+    data: string;
+  }) => {
     if (scanLockRef.current) return;
     scanLockRef.current = true;
     setScanned(true);
@@ -42,7 +52,10 @@ export default function ScanScreen() {
         const pathParts = url.pathname.split("/").filter(Boolean);
         const productIdx = pathParts.indexOf("product");
         if (productIdx !== -1 && pathParts[productIdx + 1]) {
-          router.replace({ pathname: "/product/[id]", params: { id: pathParts[productIdx + 1] } });
+          router.replace({
+            pathname: "/product/[id]",
+            params: { id: pathParts[productIdx + 1] },
+          });
           return;
         }
         showToast("QR code URL — opening in browser", "info");
@@ -56,17 +69,22 @@ export default function ScanScreen() {
 
     setResolving(true);
     try {
-      const res = await fetch(`${API_BASE}/products/barcode/${encodeURIComponent(data)}`);
+      const res = await fetch(
+        `${API_BASE}/products/barcode/${encodeURIComponent(data)}`,
+      );
       if (res.ok) {
         const json = await res.json();
         const result = json?.data ?? json;
         if (result?.found && result?.productId) {
-          router.replace({ pathname: "/product/[id]", params: { id: result.productId } });
+          router.replace({
+            pathname: "/product/[id]",
+            params: { id: result.productId },
+          });
           return;
         }
       }
-    } catch {}
-    finally {
+    } catch {
+    } finally {
       setResolving(false);
     }
 
@@ -133,7 +151,20 @@ export default function ScanScreen() {
         style={StyleSheet.absoluteFillObject}
         facing="back"
         enableTorch={torch}
-        barcodeScannerSettings={{ barcodeTypes: ["qr", "ean13", "ean8", "code128", "code39", "upc_a", "upc_e", "pdf417", "datamatrix", "aztec"] }}
+        barcodeScannerSettings={{
+          barcodeTypes: [
+            "qr",
+            "ean13",
+            "ean8",
+            "code128",
+            "code39",
+            "upc_a",
+            "upc_e",
+            "pdf417",
+            "datamatrix",
+            "aztec",
+          ],
+        }}
         onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
       />
 
@@ -155,7 +186,11 @@ export default function ScanScreen() {
           accessibilityRole="button"
           accessibilityLabel={torch ? "Turn off torch" : "Turn on torch"}
         >
-          <Ionicons name={torch ? "flash" : "flash-outline"} size={22} color={torch ? "#FBBF24" : "#fff"} />
+          <Ionicons
+            name={torch ? "flash" : "flash-outline"}
+            size={22}
+            color={torch ? "#FBBF24" : "#fff"}
+          />
         </TouchableOpacity>
       </View>
 
@@ -180,7 +215,9 @@ export default function ScanScreen() {
             </>
           ) : (
             <Text style={s.hint}>
-              {scanned ? "Scanned! Opening results..." : "Point camera at a barcode or QR code"}
+              {scanned
+                ? "Scanned! Opening results..."
+                : "Point camera at a barcode or QR code"}
             </Text>
           )}
           {scanned && !resolving && (
@@ -210,10 +247,17 @@ const BORDER = 3;
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#000" },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#000" },
+  center: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#000",
+  },
   header: {
     position: "absolute",
-    top: 0, left: 0, right: 0,
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -222,15 +266,21 @@ const s = StyleSheet.create({
     zIndex: 20,
   },
   headerBtn: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "rgba(0,0,0,0.45)",
-    alignItems: "center", justifyContent: "center",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
   },
   headerTitle: {
-    fontFamily: Font.bold, fontSize: 17, color: "#fff",
+    fontFamily: Font.bold,
+    fontSize: 17,
+    color: "#fff",
   },
-  overlay: { ...StyleSheet.absoluteFillObject as object, zIndex: 10 },
+  overlay: { ...(StyleSheet.absoluteFillObject as object), zIndex: 10 },
   topMask: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
   middleRow: { flexDirection: "row", height: FRAME },
   sideMask: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
@@ -263,37 +313,85 @@ const s = StyleSheet.create({
   rescanTxt: { fontFamily: Font.semiBold, fontSize: 13, color: "#fff" },
   corner: {
     position: "absolute",
-    width: CORNER, height: CORNER,
+    width: CORNER,
+    height: CORNER,
     borderColor: "#fff",
   },
-  tl: { top: 0, left: 0, borderTopWidth: BORDER, borderLeftWidth: BORDER, borderTopLeftRadius: 4 },
-  tr: { top: 0, right: 0, borderTopWidth: BORDER, borderRightWidth: BORDER, borderTopRightRadius: 4 },
-  bl: { bottom: 0, left: 0, borderBottomWidth: BORDER, borderLeftWidth: BORDER, borderBottomLeftRadius: 4 },
-  br: { bottom: 0, right: 0, borderBottomWidth: BORDER, borderRightWidth: BORDER, borderBottomRightRadius: 4 },
+  tl: {
+    top: 0,
+    left: 0,
+    borderTopWidth: BORDER,
+    borderLeftWidth: BORDER,
+    borderTopLeftRadius: 4,
+  },
+  tr: {
+    top: 0,
+    right: 0,
+    borderTopWidth: BORDER,
+    borderRightWidth: BORDER,
+    borderTopRightRadius: 4,
+  },
+  bl: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: BORDER,
+    borderLeftWidth: BORDER,
+    borderBottomLeftRadius: 4,
+  },
+  br: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: BORDER,
+    borderRightWidth: BORDER,
+    borderBottomRightRadius: 4,
+  },
   scanLine: {
     position: "absolute",
-    left: 8, right: 8, top: "45%",
+    left: 8,
+    right: 8,
+    top: "45%",
     height: 2,
     backgroundColor: "#22C55E",
     borderRadius: 1,
     opacity: 0.85,
   },
   permContainer: {
-    flex: 1, alignItems: "center", justifyContent: "center",
-    paddingHorizontal: 32, gap: 16,
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+    gap: 16,
   },
   permIconWrap: {
-    width: 100, height: 100, borderRadius: 50,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: C.primarySoft,
-    alignItems: "center", justifyContent: "center",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 8,
   },
-  permTitle: { fontFamily: Font.bold, fontSize: 22, color: C.text, textAlign: "center" },
-  permSub: { fontFamily: Font.regular, fontSize: 14, color: C.textSecondary, textAlign: "center", lineHeight: 22 },
+  permTitle: {
+    fontFamily: Font.bold,
+    fontSize: 22,
+    color: C.text,
+    textAlign: "center",
+  },
+  permSub: {
+    fontFamily: Font.regular,
+    fontSize: 14,
+    color: C.textSecondary,
+    textAlign: "center",
+    lineHeight: 22,
+  },
   permBtn: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: C.primary, borderRadius: 14,
-    paddingHorizontal: 28, paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: C.primary,
+    borderRadius: 14,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
     marginTop: 8,
   },
   permBtnTxt: { fontFamily: Font.bold, fontSize: 15, color: "#fff" },

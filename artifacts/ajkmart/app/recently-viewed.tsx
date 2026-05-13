@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
+import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState, useCallback } from "react";
 import {
@@ -33,7 +34,9 @@ interface RecentItem {
   originalPrice?: number;
 }
 
-export default function RecentlyViewedScreen() {
+export default withErrorBoundary(RecentlyViewedScreenInner);
+
+function RecentlyViewedScreenInner() {
   const { goBack } = useSmartBack();
   const [items, setItems] = useState<RecentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,32 +62,36 @@ export default function RecentlyViewedScreen() {
   }, [loadItems]);
 
   const handleClear = useCallback(() => {
-    Alert.alert(
-      "Clear History",
-      "Remove all recently viewed products?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear",
-          style: "destructive",
-          onPress: async () => {
-            await AsyncStorage.removeItem(RECENTLY_VIEWED_KEY).catch(() => {});
-            setItems([]);
-          },
+    Alert.alert("Clear History", "Remove all recently viewed products?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear",
+        style: "destructive",
+        onPress: async () => {
+          await AsyncStorage.removeItem(RECENTLY_VIEWED_KEY).catch(() => {});
+          setItems([]);
         },
-      ],
-    );
+      },
+    ]);
   }, []);
 
   return (
     <ScreenContainer scroll={false}>
       <View style={styles.header}>
-        <TouchableOpacity activeOpacity={0.7} onPress={goBack} style={styles.backBtn}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={goBack}
+          style={styles.backBtn}
+        >
           <Ionicons name="arrow-back" size={22} color={C.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Recently Viewed</Text>
         {items.length > 0 ? (
-          <TouchableOpacity activeOpacity={0.7} onPress={handleClear} style={styles.clearBtn}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleClear}
+            style={styles.clearBtn}
+          >
             <Ionicons name="trash-outline" size={18} color={C.danger} />
           </TouchableOpacity>
         ) : (
@@ -94,7 +101,13 @@ export default function RecentlyViewedScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadItems} tintColor={C.primary} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={loadItems}
+            tintColor={C.primary}
+          />
+        }
         contentContainerStyle={{ paddingBottom: 24 }}
       >
         {!loading && items.length === 0 ? (
@@ -103,7 +116,9 @@ export default function RecentlyViewedScreen() {
               <Ionicons name="time-outline" size={48} color={C.textMuted} />
             </View>
             <Text style={styles.emptyTitle}>No browsing history</Text>
-            <Text style={styles.emptySub}>Products you view will appear here</Text>
+            <Text style={styles.emptySub}>
+              Products you view will appear here
+            </Text>
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => router.push("/(tabs)")}
@@ -115,23 +130,37 @@ export default function RecentlyViewedScreen() {
           </View>
         ) : (
           <View style={styles.grid}>
-            {items.map(item => {
+            {items.map((item) => {
               const origPrice = item.originalPrice || 0;
-              const discount = origPrice > item.price
-                ? Math.round(((origPrice - item.price) / origPrice) * 100)
-                : 0;
+              const discount =
+                origPrice > item.price
+                  ? Math.round(((origPrice - item.price) / origPrice) * 100)
+                  : 0;
               return (
                 <TouchableOpacity
                   key={item.id}
                   activeOpacity={0.7}
-                  onPress={() => router.push({ pathname: "/product/[id]", params: { id: item.id } })}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/product/[id]",
+                      params: { id: item.id },
+                    })
+                  }
                   style={styles.card}
                 >
                   <View style={styles.cardImg}>
                     {item.image ? (
-                      <Image source={{ uri: item.image }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                      <Image
+                        source={{ uri: item.image }}
+                        style={StyleSheet.absoluteFill}
+                        resizeMode="cover"
+                      />
                     ) : (
-                      <Ionicons name="cube-outline" size={28} color={C.textMuted} />
+                      <Ionicons
+                        name="cube-outline"
+                        size={28}
+                        color={C.textMuted}
+                      />
                     )}
                     {discount > 0 && (
                       <View style={styles.discBadge}>
@@ -140,11 +169,17 @@ export default function RecentlyViewedScreen() {
                     )}
                   </View>
                   <View style={styles.cardBody}>
-                    <Text style={styles.cardName} numberOfLines={2}>{item.name}</Text>
+                    <Text style={styles.cardName} numberOfLines={2}>
+                      {item.name}
+                    </Text>
                     <View style={styles.cardFooter}>
-                      <Text style={styles.cardPrice}>Rs. {Number(item.price).toLocaleString()}</Text>
+                      <Text style={styles.cardPrice}>
+                        Rs. {Number(item.price).toLocaleString()}
+                      </Text>
                       {origPrice > item.price && (
-                        <Text style={styles.cardOrigPrice}>Rs. {origPrice.toLocaleString()}</Text>
+                        <Text style={styles.cardOrigPrice}>
+                          Rs. {origPrice.toLocaleString()}
+                        </Text>
                       )}
                     </View>
                   </View>
@@ -198,7 +233,16 @@ const styles = StyleSheet.create({
     backgroundColor: C.surface,
     borderRadius: 18,
     overflow: "hidden",
-    ...Platform.select({ web: { boxShadow: "0 2px 8px rgba(15,23,42,0.06)" }, default: { shadowColor: C.text, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 } }),
+    ...Platform.select({
+      web: { boxShadow: "0 2px 8px rgba(15,23,42,0.06)" },
+      default: {
+        shadowColor: C.text,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 2,
+      },
+    }),
   },
   cardImg: {
     height: 120,
@@ -218,7 +262,13 @@ const styles = StyleSheet.create({
   },
   discTxt: { fontFamily: Font.bold, fontSize: 9, color: C.textInverse },
   cardBody: { padding: 12 },
-  cardName: { fontFamily: Font.semiBold, fontSize: 13, color: C.text, marginBottom: 6, minHeight: 34 },
+  cardName: {
+    fontFamily: Font.semiBold,
+    fontSize: 13,
+    color: C.text,
+    marginBottom: 6,
+    minHeight: 34,
+  },
   cardFooter: { flexDirection: "row", alignItems: "baseline", gap: 6 },
   cardPrice: { fontFamily: Font.bold, fontSize: 15, color: C.text },
   cardOrigPrice: {

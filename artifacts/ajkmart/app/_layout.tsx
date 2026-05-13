@@ -1,15 +1,35 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
-import { setBaseUrl, setAuthTokenGetter, setOnApiError, setMaxRetryAttempts, setRetryBackoffBaseMs } from "@workspace/api-client-react";
+import {
+  setBaseUrl,
+  setAuthTokenGetter,
+  setOnApiError,
+  setMaxRetryAttempts,
+  setRetryBackoffBaseMs,
+} from "@workspace/api-client-react";
 import * as Linking from "expo-linking";
 import { loadCoreFonts, loadUrduFonts } from "@/utils/fonts";
 import { router, Stack, useSegments, type Href } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Modal, Platform, ScrollView, TouchableOpacity, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import Constants from "expo-constants";
 import { PopupEngine } from "@/components/PopupEngine";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -17,7 +37,10 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { reportError as reportErrorToBackend, initErrorReporter } from "@/utils/error-reporter";
+import {
+  reportError as reportErrorToBackend,
+  initErrorReporter,
+} from "@/utils/error-reporter";
 import { registerErrorHandler, createLogger } from "@/utils/logger";
 const log = createLogger("[AJKMart]");
 import { PwaInstallBanner } from "@/components/PwaInstallBanner";
@@ -30,7 +53,10 @@ import { hasSeenOnboarding } from "./onboarding";
 import { CartProvider } from "@/context/CartContext";
 import { FontSizeProvider } from "@/context/FontSizeContext";
 import { LanguageProvider, useLanguage } from "@/context/LanguageContext";
-import { PlatformConfigProvider, usePlatformConfig } from "@/context/PlatformConfigContext";
+import {
+  PlatformConfigProvider,
+  usePlatformConfig,
+} from "@/context/PlatformConfigContext";
 import { PerformanceProvider } from "@/context/PerformanceContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ToastProvider } from "@/context/ToastContext";
@@ -72,45 +98,49 @@ if (_domain) setBaseUrl(`https://${_domain}/api`);
 SplashScreen.preventAutoHideAsync();
 
 if (Platform.OS === "web" && typeof window !== "undefined") {
-  window.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
-    const msg: string = event?.reason?.message ?? String(event?.reason ?? "");
-    const isRouterTimeout =
-      /\b6000ms\b/.test(msg) ||
-      /\b\d+ms timeout exceeded\b/.test(msg) ||
-      (msg.includes("timeout") && msg.toLowerCase().includes("route"));
-    if (isRouterTimeout) {
-      event.preventDefault();
-      log.warn("Suppressed Expo Router startup timeout:", msg);
-    }
-  });
+  window.addEventListener(
+    "unhandledrejection",
+    (event: PromiseRejectionEvent) => {
+      const msg: string = event?.reason?.message ?? String(event?.reason ?? "");
+      const isRouterTimeout =
+        /\b6000ms\b/.test(msg) ||
+        /\b\d+ms timeout exceeded\b/.test(msg) ||
+        (msg.includes("timeout") && msg.toLowerCase().includes("route"));
+      if (isRouterTimeout) {
+        event.preventDefault();
+        log.warn("Suppressed Expo Router startup timeout:", msg);
+      }
+    },
+  );
 }
 
 function WebShell({ children }: { children: React.ReactNode }) {
   if (Platform.OS !== "web") return <>{children}</>;
   return (
     <View style={webStyles.bg}>
-      <View style={webStyles.phone}>
-        {children}
-      </View>
+      <View style={webStyles.phone}>{children}</View>
     </View>
   );
 }
 
-const webStyles = Platform.OS === "web" ? StyleSheet.create({
-  bg: {
-    flex: 1,
-    backgroundColor: "#0a0f1e",
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-  },
-  phone: {
-    width: "100%",
-    maxWidth: 430,
-    flex: 1,
-    overflow: "hidden" as const,
-    boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
-  },
-}) : { bg: {}, phone: {} };
+const webStyles =
+  Platform.OS === "web"
+    ? StyleSheet.create({
+        bg: {
+          flex: 1,
+          backgroundColor: "#0a0f1e",
+          alignItems: "center" as const,
+          justifyContent: "center" as const,
+        },
+        phone: {
+          width: "100%",
+          maxWidth: 430,
+          flex: 1,
+          overflow: "hidden" as const,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+        },
+      })
+    : { bg: {}, phone: {} };
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -129,8 +159,15 @@ const asyncStoragePersister = createAsyncStoragePersister({
 });
 
 const GUEST_BROWSABLE = new Set([
-  "food", "mart", "ride", "pharmacy", "parcel", "product", "search",
-  "cart", "categories",
+  "food",
+  "mart",
+  "ride",
+  "pharmacy",
+  "parcel",
+  "product",
+  "search",
+  "cart",
+  "categories",
 ]);
 
 const AUTH_REDIRECT_CAP = 4;
@@ -140,22 +177,34 @@ function AuthGuard() {
   const { user, isLoading } = useAuth();
   const segments = useSegments();
   const redirectCountRef = useRef(0);
-  const redirectResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const redirectResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const safeReplace = (path: Href) => {
     if (redirectCountRef.current >= AUTH_REDIRECT_CAP) {
-      log.error("AuthGuard redirect loop detected — cap hit navigating to", path, ". Routing to /auth as safe fallback.");
+      log.error(
+        "AuthGuard redirect loop detected — cap hit navigating to",
+        path,
+        ". Routing to /auth as safe fallback.",
+      );
       router.replace("/auth" as Href);
       return;
     }
     redirectCountRef.current += 1;
-    if (redirectResetTimerRef.current) clearTimeout(redirectResetTimerRef.current);
-    redirectResetTimerRef.current = setTimeout(() => { redirectCountRef.current = 0; }, AUTH_REDIRECT_RESET_MS);
+    if (redirectResetTimerRef.current)
+      clearTimeout(redirectResetTimerRef.current);
+    redirectResetTimerRef.current = setTimeout(() => {
+      redirectCountRef.current = 0;
+    }, AUTH_REDIRECT_RESET_MS);
     router.replace(path);
   };
 
   useEffect(() => {
-    return () => { if (redirectResetTimerRef.current) clearTimeout(redirectResetTimerRef.current); };
+    return () => {
+      if (redirectResetTimerRef.current)
+        clearTimeout(redirectResetTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -166,22 +215,36 @@ function AuthGuard() {
     const isBrowsable = GUEST_BROWSABLE.has(segments[0] as string);
     const inOnboarding = segments[0] === "onboarding";
 
-    const isPublicRoute = inAuthGroup || inTabsGroup || inRootIndex || isBrowsable || inOnboarding;
-    const onWrongAppScreen = (segments as any)[0] === "auth" && (segments as any)[1] === "wrong-app";
+    const isPublicRoute =
+      inAuthGroup || inTabsGroup || inRootIndex || isBrowsable || inOnboarding;
+    const onWrongAppScreen =
+      (segments as any)[0] === "auth" && (segments as any)[1] === "wrong-app";
 
     if (!user && !isPublicRoute) {
-      hasSeenOnboarding().then(seen => {
-        if (!seen) safeReplace("/onboarding");
-        else safeReplace("/auth");
-      }).catch(() => { safeReplace("/auth"); });
+      hasSeenOnboarding()
+        .then((seen) => {
+          if (!seen) safeReplace("/onboarding");
+          else safeReplace("/auth");
+        })
+        .catch(() => {
+          safeReplace("/auth");
+        });
     } else if (!user && inRootIndex) {
-      hasSeenOnboarding().then(seen => {
-        if (!seen) safeReplace("/onboarding");
-        else safeReplace("/auth");
-      }).catch(() => { safeReplace("/auth"); });
+      hasSeenOnboarding()
+        .then((seen) => {
+          if (!seen) safeReplace("/onboarding");
+          else safeReplace("/auth");
+        })
+        .catch(() => {
+          safeReplace("/auth");
+        });
     } else if (user && !hasRole(user, "customer") && !onWrongAppScreen) {
       safeReplace("/auth/wrong-app");
-    } else if (user && hasRole(user, "customer") && (inAuthGroup || inRootIndex)) {
+    } else if (
+      user &&
+      hasRole(user, "customer") &&
+      (inAuthGroup || inRootIndex)
+    ) {
       safeReplace("/(tabs)");
     }
   }, [user, isLoading, segments]);
@@ -194,16 +257,67 @@ function SuspendedScreen() {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   return (
-    <View style={{ flex: 1, backgroundColor: "#FEF2F2", alignItems: "center", justifyContent: "center", padding: 32 }}>
-      <View style={{ width: 90, height: 90, borderRadius: 45, backgroundColor: "#FEE2E2", alignItems: "center", justifyContent: "center", marginBottom: 24 }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: "#FEF2F2",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 32,
+      }}
+    >
+      <View
+        style={{
+          width: 90,
+          height: 90,
+          borderRadius: 45,
+          backgroundColor: "#FEE2E2",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 24,
+        }}
+      >
         <Text style={{ fontSize: 44 }}>🚫</Text>
       </View>
-      <Text style={{ fontFamily: "Inter_700Bold", fontSize: 22, color: "#991B1B", textAlign: "center", marginBottom: 12 }}>{T("accountSuspended")}</Text>
-      <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: "#7F1D1D", textAlign: "center", lineHeight: 22, marginBottom: 32 }}>
+      <Text
+        style={{
+          fontFamily: "Inter_700Bold",
+          fontSize: 22,
+          color: "#991B1B",
+          textAlign: "center",
+          marginBottom: 12,
+        }}
+      >
+        {T("accountSuspended")}
+      </Text>
+      <Text
+        style={{
+          fontFamily: "Inter_400Regular",
+          fontSize: 14,
+          color: "#7F1D1D",
+          textAlign: "center",
+          lineHeight: 22,
+          marginBottom: 32,
+        }}
+      >
         {suspendedMessage || T("accountSuspendedMsg")}
       </Text>
-      <TouchableOpacity activeOpacity={0.7} onPress={clearSuspended} style={{ backgroundColor: "#DC2626", borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, alignItems: "center" }}>
-        <Text style={{ fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" }}>{T("signOutLabel")}</Text>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={clearSuspended}
+        style={{
+          backgroundColor: "#DC2626",
+          borderRadius: 14,
+          paddingVertical: 14,
+          paddingHorizontal: 32,
+          alignItems: "center",
+        }}
+      >
+        <Text
+          style={{ fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" }}
+        >
+          {T("signOutLabel")}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -214,24 +328,76 @@ function MaintenanceScreen() {
   const { language } = useLanguage();
   const T = (key: TranslationKey) => tDual(key, language);
   return (
-    <View style={{ flex: 1, backgroundColor: "#FFF7ED", alignItems: "center", justifyContent: "center", padding: 32 }}>
-      <View style={{ width: 90, height: 90, borderRadius: 45, backgroundColor: "#FEF3C7", alignItems: "center", justifyContent: "center", marginBottom: 24 }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: "#FFF7ED",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 32,
+      }}
+    >
+      <View
+        style={{
+          width: 90,
+          height: 90,
+          borderRadius: 45,
+          backgroundColor: "#FEF3C7",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 24,
+        }}
+      >
         <Text style={{ fontSize: 44 }}>🔧</Text>
       </View>
-      <Text style={{ fontFamily: "Inter_700Bold", fontSize: 22, color: "#92400E", textAlign: "center", marginBottom: 12 }}>{T("underMaintenance")}</Text>
-      <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: "#78350F", textAlign: "center", lineHeight: 22, marginBottom: 16 }}>
+      <Text
+        style={{
+          fontFamily: "Inter_700Bold",
+          fontSize: 22,
+          color: "#92400E",
+          textAlign: "center",
+          marginBottom: 12,
+        }}
+      >
+        {T("underMaintenance")}
+      </Text>
+      <Text
+        style={{
+          fontFamily: "Inter_400Regular",
+          fontSize: 14,
+          color: "#78350F",
+          textAlign: "center",
+          lineHeight: 22,
+          marginBottom: 16,
+        }}
+      >
         {config.content.maintenanceMsg || T("maintenanceApology")}
       </Text>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#FEF3C7", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 }}>
-        <Text style={{ fontFamily: "Inter_500Medium", fontSize: 12, color: "#B45309" }}>
-          Support: {config.platform.supportPhone || config.platform.supportEmail}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 6,
+          backgroundColor: "#FEF3C7",
+          borderRadius: 10,
+          paddingHorizontal: 14,
+          paddingVertical: 8,
+        }}
+      >
+        <Text
+          style={{
+            fontFamily: "Inter_500Medium",
+            fontSize: 12,
+            color: "#B45309",
+          }}
+        >
+          Support:{" "}
+          {config.platform.supportPhone || config.platform.supportEmail}
         </Text>
       </View>
     </View>
   );
 }
-
-const API_BASE = `https://${_domain}/api`;
 
 function ImpersonationHandler() {
   const { login } = useAuth();
@@ -246,7 +412,11 @@ function ImpersonationHandler() {
     try {
       const url = new URL(window.location.href);
       url.searchParams.delete("impersonateToken");
-      window.history.replaceState({}, "", url.pathname + (url.search || "") + (url.hash || ""));
+      window.history.replaceState(
+        {},
+        "",
+        url.pathname + (url.search || "") + (url.hash || ""),
+      );
     } catch {}
 
     const doImpersonate = async () => {
@@ -256,7 +426,10 @@ function ImpersonationHandler() {
           headers: { Authorization: `Bearer ${impersonateToken}` },
         });
         if (!profileRes.ok) {
-          log.warn("ImpersonationHandler: Profile fetch failed:", profileRes.status);
+          log.warn(
+            "ImpersonationHandler: Profile fetch failed:",
+            profileRes.status,
+          );
           return;
         }
         const profileData = await profileRes.json();
@@ -283,33 +456,59 @@ function MagicLinkHandler() {
     const handleUrl = async (url: string) => {
       try {
         const parsed = new URL(url);
-        const token = parsed.searchParams.get("magic_token") || parsed.searchParams.get("token");
+        const token =
+          parsed.searchParams.get("magic_token") ||
+          parsed.searchParams.get("token");
         if (!token) return;
-        if (!parsed.pathname.includes("magic-link") && !parsed.pathname.includes("auth")) return;
+        if (
+          !parsed.pathname.includes("magic-link") &&
+          !parsed.pathname.includes("auth")
+        )
+          return;
 
-        const res = await fetch(`${API_BASE}/auth/magic-link/verify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
+        const res = await fetch(
+          `https://${_domain}/api/auth/magic-link/verify`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token }),
+          },
+        );
         const data = await res.json();
         if (!res.ok) {
           const errMsg: string = data.error || data.message || "";
           let userMessage: string;
-          if (errMsg.toLowerCase().includes("expired") || data.code === "EXPIRED") {
-            userMessage = "This magic link has expired. Please request a new login link.";
-          } else if (errMsg.toLowerCase().includes("used") || data.code === "USED") {
-            userMessage = "This magic link has already been used. Please request a new one.";
-          } else if (errMsg.toLowerCase().includes("invalid") || data.code === "INVALID") {
-            userMessage = "This magic link is invalid. Please request a new login link.";
+          if (
+            errMsg.toLowerCase().includes("expired") ||
+            data.code === "EXPIRED"
+          ) {
+            userMessage =
+              "This magic link has expired. Please request a new login link.";
+          } else if (
+            errMsg.toLowerCase().includes("used") ||
+            data.code === "USED"
+          ) {
+            userMessage =
+              "This magic link has already been used. Please request a new one.";
+          } else if (
+            errMsg.toLowerCase().includes("invalid") ||
+            data.code === "INVALID"
+          ) {
+            userMessage =
+              "This magic link is invalid. Please request a new login link.";
           } else {
-            userMessage = errMsg || "Invalid or expired magic link. Please request a new one.";
+            userMessage =
+              errMsg ||
+              "Invalid or expired magic link. Please request a new one.";
           }
           Alert.alert("Sign-In Failed", userMessage, [{ text: "OK" }]);
           return;
         }
         if (data.requires2FA) {
-          setTwoFactorPending({ tempToken: data.tempToken, userId: data.userId });
+          setTwoFactorPending({
+            tempToken: data.tempToken,
+            userId: data.userId,
+          });
           router.replace("/auth");
           return;
         }
@@ -327,8 +526,14 @@ function MagicLinkHandler() {
       }
     };
 
-    const sub = Linking.addEventListener("url", (event) => handleUrl(event.url));
-    Linking.getInitialURL().then(url => { if (url) handleUrl(url); }).catch(() => {});
+    const sub = Linking.addEventListener("url", (event) =>
+      handleUrl(event.url),
+    );
+    Linking.getInitialURL()
+      .then((url) => {
+        if (url) handleUrl(url);
+      })
+      .catch(() => {});
     return () => sub.remove();
   }, []);
 
@@ -346,7 +551,7 @@ function DeepLinkHandler() {
         if (path === "magic-link" || path === "auth") return;
 
         const params = Object.fromEntries(
-          Array.from(((parsed.searchParams as any).entries?.() || []) as any[])
+          Array.from(((parsed.searchParams as any).entries?.() || []) as any[]),
         );
 
         const routeMap: Record<string, string> = {
@@ -378,7 +583,9 @@ function DeepLinkHandler() {
         type RouterHref = Parameters<typeof router.push>[0];
         const pushNotFound = () => {
           setTimeout(() => {
-            try { router.push("/+not-found" as RouterHref); } catch {}
+            try {
+              router.push("/+not-found" as RouterHref);
+            } catch {}
           }, 500);
         };
 
@@ -390,7 +597,12 @@ function DeepLinkHandler() {
 
         let targetPath = route;
         if (route.includes("{id}")) {
-          const id = params.productId || params.vendorId || params.id || pathSegmentId || "";
+          const id =
+            params.productId ||
+            params.vendorId ||
+            params.id ||
+            pathSegmentId ||
+            "";
           if (!id) {
             pushNotFound();
             return;
@@ -400,12 +612,26 @@ function DeepLinkHandler() {
 
         if (resolvedPath === "ride" && (params.pickup || params.dropoff)) {
           const queryParts: string[] = [];
-          if (params.pickup) queryParts.push(`pickup=${encodeURIComponent(params.pickup)}`);
-          if (params.dropoff) queryParts.push(`dropoff=${encodeURIComponent(params.dropoff)}`);
-          if (params.pickupLat) queryParts.push(`pickupLat=${encodeURIComponent(params.pickupLat)}`);
-          if (params.pickupLng) queryParts.push(`pickupLng=${encodeURIComponent(params.pickupLng)}`);
-          if (params.dropoffLat) queryParts.push(`dropoffLat=${encodeURIComponent(params.dropoffLat)}`);
-          if (params.dropoffLng) queryParts.push(`dropoffLng=${encodeURIComponent(params.dropoffLng)}`);
+          if (params.pickup)
+            queryParts.push(`pickup=${encodeURIComponent(params.pickup)}`);
+          if (params.dropoff)
+            queryParts.push(`dropoff=${encodeURIComponent(params.dropoff)}`);
+          if (params.pickupLat)
+            queryParts.push(
+              `pickupLat=${encodeURIComponent(params.pickupLat)}`,
+            );
+          if (params.pickupLng)
+            queryParts.push(
+              `pickupLng=${encodeURIComponent(params.pickupLng)}`,
+            );
+          if (params.dropoffLat)
+            queryParts.push(
+              `dropoffLat=${encodeURIComponent(params.dropoffLat)}`,
+            );
+          if (params.dropoffLng)
+            queryParts.push(
+              `dropoffLng=${encodeURIComponent(params.dropoffLng)}`,
+            );
           if (queryParts.length) targetPath += `?${queryParts.join("&")}`;
         }
 
@@ -429,12 +655,17 @@ function DeepLinkHandler() {
             log.warn("DeepLink: Could not navigate to:", targetPath);
           }
         }, 500);
-      } catch {
-      }
+      } catch {}
     };
 
-    const sub = Linking.addEventListener("url", (event) => handleDeepLink(event.url));
-    Linking.getInitialURL().then(url => { if (url) handleDeepLink(url); }).catch(() => {});
+    const sub = Linking.addEventListener("url", (event) =>
+      handleDeepLink(event.url),
+    );
+    Linking.getInitialURL()
+      .then((url) => {
+        if (url) handleDeepLink(url);
+      })
+      .catch(() => {});
     return () => sub.remove();
   }, []);
 
@@ -446,7 +677,10 @@ function PushNotificationHandlerNative() {
 
   useEffect(() => {
     if (!lastResponse) return;
-    const data = lastResponse.notification.request.content.data as Record<string, string | undefined>;
+    const data = lastResponse.notification.request.content.data as Record<
+      string,
+      string | undefined
+    >;
     const { orderId, rideId, parcelId, screen } = data;
 
     const navigate = () => {
@@ -481,8 +715,8 @@ function PushNotificationHandler() {
 }
 
 function semverGte(a: string, b: string): boolean {
-  const pa = a.split(".").map(n => parseInt(n, 10) || 0);
-  const pb = b.split(".").map(n => parseInt(n, 10) || 0);
+  const pa = a.split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = b.split(".").map((n) => parseInt(n, 10) || 0);
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
     const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
     if (diff !== 0) return diff > 0;
@@ -492,27 +726,86 @@ function semverGte(a: string, b: string): boolean {
 
 const WHATS_NEW_KEY = "@ajkmart_last_whats_new_version";
 
-function ForceUpdateDialog({ visible, storeUrl }: { visible: boolean; storeUrl: string }) {
+function ForceUpdateDialog({
+  visible,
+  storeUrl,
+}: {
+  visible: boolean;
+  storeUrl: string;
+}) {
   const openStore = () => {
     if (storeUrl) Linking.openURL(storeUrl).catch(() => {});
   };
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
-      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)", alignItems: "center", justifyContent: "center", padding: 24 }}>
-        <View style={{ backgroundColor: "#fff", borderRadius: 20, padding: 28, width: "100%", maxWidth: 360, alignItems: "center" }}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "rgba(0,0,0,0.7)",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: "#fff",
+            borderRadius: 20,
+            padding: 28,
+            width: "100%",
+            maxWidth: 360,
+            alignItems: "center",
+          }}
+        >
           <Text style={{ fontSize: 48, marginBottom: 12 }}>🚀</Text>
-          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 20, color: "#111827", textAlign: "center", marginBottom: 10 }}>
+          <Text
+            style={{
+              fontFamily: "Inter_700Bold",
+              fontSize: 20,
+              color: "#111827",
+              textAlign: "center",
+              marginBottom: 10,
+            }}
+          >
             Update Required
           </Text>
-          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: "#6B7280", textAlign: "center", lineHeight: 22, marginBottom: 24 }}>
-            A newer version of AJKMart is required to continue. Please update the app to access all features.
+          <Text
+            style={{
+              fontFamily: "Inter_400Regular",
+              fontSize: 14,
+              color: "#6B7280",
+              textAlign: "center",
+              lineHeight: 22,
+              marginBottom: 24,
+            }}
+          >
+            A newer version of AJKMart is required to continue. Please update
+            the app to access all features.
           </Text>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={openStore}
-            style={{ backgroundColor: "#7C3AED", borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, width: "100%" }}
+            style={{
+              backgroundColor: "#7C3AED",
+              borderRadius: 14,
+              paddingVertical: 14,
+              paddingHorizontal: 32,
+              width: "100%",
+            }}
           >
-            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff", textAlign: "center" }}>
+            <Text
+              style={{
+                fontFamily: "Inter_700Bold",
+                fontSize: 15,
+                color: "#fff",
+                textAlign: "center",
+              }}
+            >
               Update Now
             </Text>
           </TouchableOpacity>
@@ -522,7 +815,15 @@ function ForceUpdateDialog({ visible, storeUrl }: { visible: boolean; storeUrl: 
   );
 }
 
-function TermsModal({ visible, termsVersion, onAccept }: { visible: boolean; termsVersion: string; onAccept: () => void }) {
+function TermsModal({
+  visible,
+  termsVersion,
+  onAccept,
+}: {
+  visible: boolean;
+  termsVersion: string;
+  onAccept: () => void;
+}) {
   const { token } = useAuth();
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -532,47 +833,138 @@ function TermsModal({ visible, termsVersion, onAccept }: { visible: boolean; ter
     setAccepting(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/platform-config/accept-terms`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ termsVersion }),
-      });
+      const res = await fetch(
+        `https://${_domain}/api/platform-config/accept-terms`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ termsVersion }),
+        },
+      );
       if (!res.ok) throw new Error("Failed to record acceptance");
       onAccept();
     } catch {
-      setError("Unable to save your acceptance. Please check your connection and try again.");
+      setError(
+        "Unable to save your acceptance. Please check your connection and try again.",
+      );
     } finally {
       setAccepting(false);
     }
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent>
-      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" }}>
-        <View style={{ backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: "80%" }}>
-          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 20, color: "#111827", marginBottom: 6 }}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      statusBarTranslucent
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "rgba(0,0,0,0.6)",
+          justifyContent: "flex-end",
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: "#fff",
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            padding: 24,
+            maxHeight: "80%",
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: "Inter_700Bold",
+              fontSize: 20,
+              color: "#111827",
+              marginBottom: 6,
+            }}
+          >
             Updated Terms & Conditions
           </Text>
-          <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: "#6B7280", marginBottom: 16 }}>
-            Version {termsVersion} — We've updated our terms of service. Please review and accept to continue.
+          <Text
+            style={{
+              fontFamily: "Inter_400Regular",
+              fontSize: 13,
+              color: "#6B7280",
+              marginBottom: 16,
+            }}
+          >
+            Version {termsVersion} — We've updated our terms of service. Please
+            review and accept to continue.
           </Text>
-          <ScrollView style={{ maxHeight: 220, backgroundColor: "#F9FAFB", borderRadius: 12, padding: 14, marginBottom: 20 }}>
-            <Text style={{ fontFamily: "Inter_400Regular", fontSize: 13, color: "#374151", lineHeight: 22 }}>
-              By using AJKMart, you agree to our Terms of Service and Privacy Policy. You must be at least 13 years of age to use our services. We collect and process your data as described in our Privacy Policy. You may not misuse our services or interfere with their normal operation. We reserve the right to suspend or terminate accounts that violate these terms.{"\n\n"}These terms were last updated and require your explicit acknowledgment to continue using the platform.
+          <ScrollView
+            style={{
+              maxHeight: 220,
+              backgroundColor: "#F9FAFB",
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 20,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: "Inter_400Regular",
+                fontSize: 13,
+                color: "#374151",
+                lineHeight: 22,
+              }}
+            >
+              By using AJKMart, you agree to our Terms of Service and Privacy
+              Policy. You must be at least 13 years of age to use our services.
+              We collect and process your data as described in our Privacy
+              Policy. You may not misuse our services or interfere with their
+              normal operation. We reserve the right to suspend or terminate
+              accounts that violate these terms.{"\n\n"}These terms were last
+              updated and require your explicit acknowledgment to continue using
+              the platform.
             </Text>
           </ScrollView>
           {error && (
-            <View style={{ backgroundColor: "#FEF2F2", borderRadius: 10, padding: 12, marginBottom: 12 }}>
-              <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: "#DC2626" }}>{error}</Text>
+            <View
+              style={{
+                backgroundColor: "#FEF2F2",
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 12,
+              }}
+            >
+              <Text
+                style={{
+                  fontFamily: "Inter_400Regular",
+                  fontSize: 12,
+                  color: "#DC2626",
+                }}
+              >
+                {error}
+              </Text>
             </View>
           )}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={handleAccept}
             disabled={accepting}
-            style={{ backgroundColor: accepting ? "#A78BFA" : "#7C3AED", borderRadius: 14, paddingVertical: 14, alignItems: "center", marginBottom: 10 }}
+            style={{
+              backgroundColor: accepting ? "#A78BFA" : "#7C3AED",
+              borderRadius: 14,
+              paddingVertical: 14,
+              alignItems: "center",
+              marginBottom: 10,
+            }}
           >
-            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" }}>
+            <Text
+              style={{
+                fontFamily: "Inter_700Bold",
+                fontSize: 15,
+                color: "#fff",
+              }}
+            >
               {accepting ? "Accepting..." : "I Accept the Terms"}
             </Text>
           </TouchableOpacity>
@@ -582,39 +974,123 @@ function TermsModal({ visible, termsVersion, onAccept }: { visible: boolean; ter
   );
 }
 
-function WhatsNewSheet({ visible, releaseNotes, appVersion, onDismiss }: {
+function WhatsNewSheet({
+  visible,
+  releaseNotes,
+  appVersion,
+  onDismiss,
+}: {
   visible: boolean;
-  releaseNotes: { id: string; version: string; releaseDate: string; notes: string[]; sortOrder: number }[];
+  releaseNotes: {
+    id: string;
+    version: string;
+    releaseDate: string;
+    notes: string[];
+    sortOrder: number;
+  }[];
   appVersion: string;
   onDismiss: () => void;
 }) {
-  const currentNotes = releaseNotes.filter(n => n.version === appVersion);
+  const currentNotes = releaseNotes.filter((n) => n.version === appVersion);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent>
-      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" }}>
-        <View style={{ backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: "80%" }}>
-          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 16 }}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      statusBarTranslucent
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: "rgba(0,0,0,0.5)",
+          justifyContent: "flex-end",
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: "#fff",
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            padding: 24,
+            maxHeight: "80%",
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 16,
+            }}
+          >
             <Text style={{ fontSize: 28, marginRight: 10 }}>🎉</Text>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 20, color: "#111827" }}>
+              <Text
+                style={{
+                  fontFamily: "Inter_700Bold",
+                  fontSize: 20,
+                  color: "#111827",
+                }}
+              >
                 What's New
               </Text>
-              <Text style={{ fontFamily: "Inter_400Regular", fontSize: 12, color: "#6B7280" }}>
+              <Text
+                style={{
+                  fontFamily: "Inter_400Regular",
+                  fontSize: 12,
+                  color: "#6B7280",
+                }}
+              >
                 Version {appVersion}
               </Text>
             </View>
           </View>
-          <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
-            {currentNotes.length > 0 ? currentNotes[0].notes.map((note, i) => (
-              <View key={i} style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 12 }}>
-                <Text style={{ color: "#7C3AED", fontSize: 16, marginRight: 8, marginTop: 1 }}>•</Text>
-                <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: "#374151", lineHeight: 22, flex: 1 }}>
-                  {note}
-                </Text>
-              </View>
-            )) : (
-              <Text style={{ fontFamily: "Inter_400Regular", fontSize: 14, color: "#6B7280", lineHeight: 22 }}>
+          <ScrollView
+            style={{ maxHeight: 320 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {currentNotes.length > 0 ? (
+              currentNotes[0].notes.map((note, i) => (
+                <View
+                  key={i}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "flex-start",
+                    marginBottom: 12,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: "#7C3AED",
+                      fontSize: 16,
+                      marginRight: 8,
+                      marginTop: 1,
+                    }}
+                  >
+                    •
+                  </Text>
+                  <Text
+                    style={{
+                      fontFamily: "Inter_400Regular",
+                      fontSize: 14,
+                      color: "#374151",
+                      lineHeight: 22,
+                      flex: 1,
+                    }}
+                  >
+                    {note}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <Text
+                style={{
+                  fontFamily: "Inter_400Regular",
+                  fontSize: 14,
+                  color: "#6B7280",
+                  lineHeight: 22,
+                }}
+              >
                 Bug fixes and performance improvements.
               </Text>
             )}
@@ -622,9 +1098,23 @@ function WhatsNewSheet({ visible, releaseNotes, appVersion, onDismiss }: {
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={onDismiss}
-            style={{ backgroundColor: "#7C3AED", borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 16 }}
+            style={{
+              backgroundColor: "#7C3AED",
+              borderRadius: 14,
+              paddingVertical: 14,
+              alignItems: "center",
+              marginTop: 16,
+            }}
           >
-            <Text style={{ fontFamily: "Inter_700Bold", fontSize: 15, color: "#fff" }}>Got it!</Text>
+            <Text
+              style={{
+                fontFamily: "Inter_700Bold",
+                fontSize: 15,
+                color: "#fff",
+              }}
+            >
+              Got it!
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -634,38 +1124,109 @@ function WhatsNewSheet({ visible, releaseNotes, appVersion, onDismiss }: {
 
 function MisconfigScreen() {
   return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32, backgroundColor: "#0f172a" }}>
+    <View
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 32,
+        backgroundColor: "#0f172a",
+      }}
+    >
       <Text style={{ fontSize: 48 }}>⚙️</Text>
-      <Text style={{ color: "#f1f5f9", fontSize: 20, fontWeight: "700", marginTop: 16, textAlign: "center" }}>
+      <Text
+        style={{
+          color: "#f1f5f9",
+          fontSize: 20,
+          fontWeight: "700",
+          marginTop: 16,
+          textAlign: "center",
+        }}
+      >
         App Not Configured
       </Text>
-      <Text style={{ color: "#94a3b8", fontSize: 14, marginTop: 10, textAlign: "center", lineHeight: 22 }}>
-        {"EXPO_PUBLIC_DOMAIN is not set.\nPlease configure the environment and rebuild the app."}
+      <Text
+        style={{
+          color: "#94a3b8",
+          fontSize: 14,
+          marginTop: 10,
+          textAlign: "center",
+          lineHeight: 22,
+        }}
+      >
+        {
+          "EXPO_PUBLIC_DOMAIN is not set.\nPlease configure the environment and rebuild the app."
+        }
       </Text>
     </View>
   );
 }
 
-function ApiUnreachableScreen({ url, onRetry, retrying }: { url: string; onRetry: () => void; retrying: boolean }) {
+function ApiUnreachableScreen({
+  url,
+  onRetry,
+  retrying,
+}: {
+  url: string;
+  onRetry: () => void;
+  retrying: boolean;
+}) {
   return (
-    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 32, backgroundColor: "#0f172a" }}>
-      <View style={{
-        width: 90, height: 90, borderRadius: 45,
-        backgroundColor: "rgba(239,68,68,0.15)",
-        alignItems: "center", justifyContent: "center", marginBottom: 24,
-      }}>
+    <View
+      style={{
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 32,
+        backgroundColor: "#0f172a",
+      }}
+    >
+      <View
+        style={{
+          width: 90,
+          height: 90,
+          borderRadius: 45,
+          backgroundColor: "rgba(239,68,68,0.15)",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 24,
+        }}
+      >
         <Text style={{ fontSize: 44 }}>⚠️</Text>
       </View>
-      <Text style={{ color: "#f1f5f9", fontSize: 22, fontWeight: "700", textAlign: "center", marginBottom: 12 }}>
+      <Text
+        style={{
+          color: "#f1f5f9",
+          fontSize: 22,
+          fontWeight: "700",
+          textAlign: "center",
+          marginBottom: 12,
+        }}
+      >
         Cannot Reach Server
       </Text>
-      <Text style={{ color: "#94a3b8", fontSize: 14, textAlign: "center", lineHeight: 22, marginBottom: 8 }}>
-        AJKMart could not connect to the API server. Please check your connection and try again.
+      <Text
+        style={{
+          color: "#94a3b8",
+          fontSize: 14,
+          textAlign: "center",
+          lineHeight: 22,
+          marginBottom: 8,
+        }}
+      >
+        AJKMart could not connect to the API server. Please check your
+        connection and try again.
       </Text>
-      <Text style={{
-        color: "#64748b", fontSize: 11, fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
-        textAlign: "center", marginBottom: 32, paddingHorizontal: 8,
-      }}>
+      <Text
+        style={{
+          color: "#64748b",
+          fontSize: 11,
+          fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+          textAlign: "center",
+          marginBottom: 32,
+          paddingHorizontal: 8,
+        }}
+      >
         {url}
       </Text>
       <TouchableOpacity
@@ -674,14 +1235,20 @@ function ApiUnreachableScreen({ url, onRetry, retrying }: { url: string; onRetry
         disabled={retrying}
         style={{
           backgroundColor: retrying ? "#3b82f688" : "#3b82f6",
-          borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32,
-          alignItems: "center", width: "100%",
+          borderRadius: 14,
+          paddingVertical: 14,
+          paddingHorizontal: 32,
+          alignItems: "center",
+          width: "100%",
         }}
       >
-        {retrying
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>Retry Connection</Text>
-        }
+        {retrying ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={{ color: "#fff", fontSize: 15, fontWeight: "700" }}>
+            Retry Connection
+          </Text>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -712,20 +1279,30 @@ function RootLayoutNav() {
   const installedVersion = Constants.expoConfig?.version ?? "";
   const minAppVersion = config.compliance?.minAppVersion ?? "";
   const STRICT_SEMVER_RE = /^\d+\.\d+\.\d+$/;
-  const _cur = typeof installedVersion === "string" ? installedVersion.trim() : "";
+  const _cur =
+    typeof installedVersion === "string" ? installedVersion.trim() : "";
   const _min = typeof minAppVersion === "string" ? minAppVersion.trim() : "";
   let forceUpdate = false;
-  if (!_cur || !_min || !STRICT_SEMVER_RE.test(_cur) || !STRICT_SEMVER_RE.test(_min)) {
-    log.warn("ForceUpdate: Skipping force-update check — invalid or missing version data", {
-      installedVersion: _cur || "(empty)",
-      minAppVersion: _min || "(empty)",
-    });
+  if (
+    !_cur ||
+    !_min ||
+    !STRICT_SEMVER_RE.test(_cur) ||
+    !STRICT_SEMVER_RE.test(_min)
+  ) {
+    log.warn(
+      "ForceUpdate: Skipping force-update check — invalid or missing version data",
+      {
+        installedVersion: _cur || "(empty)",
+        minAppVersion: _min || "(empty)",
+      },
+    );
   } else {
     forceUpdate = !semverGte(_cur, _min);
   }
-  const storeUrl = Platform.OS === "ios"
-    ? (config.compliance?.appStoreUrl ?? "")
-    : (config.compliance?.playStoreUrl ?? "");
+  const storeUrl =
+    Platform.OS === "ios"
+      ? (config.compliance?.appStoreUrl ?? "")
+      : (config.compliance?.playStoreUrl ?? "");
 
   const [showTerms, setShowTerms] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
@@ -787,16 +1364,27 @@ function RootLayoutNav() {
     const doInit = () => {
       deferredInitDone.current = true;
       if (integ.sentry && integ.sentryDsn) {
-        initSentry(integ.sentryDsn, integ.sentryEnvironment, integ.sentrySampleRate).catch(() => {});
+        initSentry(
+          integ.sentryDsn,
+          integ.sentryEnvironment,
+          integ.sentrySampleRate,
+        ).catch(() => {});
       }
       if (integ.analytics && integ.analyticsTrackingId) {
-        initAnalytics(integ.analyticsPlatform, integ.analyticsTrackingId, integ.analyticsDebug ?? false);
+        initAnalytics(
+          integ.analyticsPlatform,
+          integ.analyticsTrackingId,
+          integ.analyticsDebug ?? false,
+        );
         trackScreen("app_start");
       }
     };
     const timer = setTimeout(doInit, 1500);
     return () => clearTimeout(timer);
-  }, [config?.integrations?.sentryDsn, config?.integrations?.analyticsTrackingId]);
+  }, [
+    config?.integrations?.sentryDsn,
+    config?.integrations?.analyticsTrackingId,
+  ]);
 
   /* ── Defer push + identify until after initial home screen render ── */
   useEffect(() => {
@@ -813,7 +1401,10 @@ function RootLayoutNav() {
   const lastCheckedTermsVersionRef = useRef<string | null>(null);
   useEffect(() => {
     const currentTermsVersion = config.compliance?.termsVersion ?? null;
-    if (currentTermsVersion && currentTermsVersion !== lastCheckedTermsVersionRef.current) {
+    if (
+      currentTermsVersion &&
+      currentTermsVersion !== lastCheckedTermsVersionRef.current
+    ) {
       termsCheckedRef.current = false;
     }
   }, [config.compliance?.termsVersion]);
@@ -825,12 +1416,13 @@ function RootLayoutNav() {
     const termsVersion = config.compliance?.termsVersion;
     if (!termsVersion) return;
     lastCheckedTermsVersionRef.current = termsVersion;
-    fetch(`${API_BASE}/platform-config/compliance-status`, {
+    fetch(`https://${_domain}/api/platform-config/compliance-status`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => r.json())
-      .then(data => {
-        const accepted = data?.data?.acceptedTermsVersion ?? data?.acceptedTermsVersion;
+      .then((r) => r.json())
+      .then((data) => {
+        const accepted =
+          data?.data?.acceptedTermsVersion ?? data?.acceptedTermsVersion;
         if (!accepted || accepted !== termsVersion) {
           setShowTerms(true);
         }
@@ -842,11 +1434,13 @@ function RootLayoutNav() {
   useEffect(() => {
     if (!user?.id || whatsNewCheckedRef.current || forceUpdate) return;
     whatsNewCheckedRef.current = true;
-    AsyncStorage.getItem(WHATS_NEW_KEY).then(lastSeen => {
-      if (lastSeen !== installedVersion && config.releaseNotes?.length > 0) {
-        setTimeout(() => setShowWhatsNew(true), 1500);
-      }
-    }).catch(() => {});
+    AsyncStorage.getItem(WHATS_NEW_KEY)
+      .then((lastSeen) => {
+        if (lastSeen !== installedVersion && config.releaseNotes?.length > 0) {
+          setTimeout(() => setShowWhatsNew(true), 1500);
+        }
+      })
+      .catch(() => {});
   }, [user?.id, installedVersion, config.releaseNotes?.length, forceUpdate]);
 
   if (isSuspended) return <SuspendedScreen />;
@@ -855,11 +1449,20 @@ function RootLayoutNav() {
   return (
     <>
       {config.appStatus === "limited" && (
-        <View style={{
-          position: "absolute", top: 0, left: 0, right: 0, zIndex: 1000,
-          backgroundColor: "#F59E0B", paddingTop: 44, paddingBottom: 8,
-          paddingHorizontal: 16, alignItems: "center",
-        }}>
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            backgroundColor: "#F59E0B",
+            paddingTop: 44,
+            paddingBottom: 8,
+            paddingHorizontal: 16,
+            alignItems: "center",
+          }}
+        >
           <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>
             ⚠️ Limited service — some features may be temporarily unavailable
           </Text>
@@ -870,7 +1473,12 @@ function RootLayoutNav() {
       <MagicLinkHandler />
       <DeepLinkHandler />
       <PushNotificationHandler />
-      {_domain && <PopupEngine apiBase={`https://${_domain}/api`} triggerKey={segments.join("/")} />}
+      {_domain && (
+        <PopupEngine
+          apiBase={`https://${_domain}/api`}
+          triggerKey={segments.join("/")}
+        />
+      )}
       <ForceUpdateDialog visible={forceUpdate} storeUrl={storeUrl} />
       <TermsModal
         visible={!forceUpdate && showTerms}
@@ -887,28 +1495,36 @@ function RootLayoutNav() {
         }}
       />
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index"          options={{ headerShown: false }} />
-        <Stack.Screen name="onboarding"     options={{ headerShown: false, gestureEnabled: false }} />
-        <Stack.Screen name="(tabs)"         options={{ headerShown: false }} />
-        <Stack.Screen name="auth"           options={{ headerShown: false }} />
-        <Stack.Screen name="mart/index"     options={{ headerShown: false }} />
-        <Stack.Screen name="food/index"     options={{ headerShown: false }} />
-        <Stack.Screen name="ride/index"     options={{ headerShown: false }} />
-        <Stack.Screen name="cart/index"     options={{ headerShown: false }} />
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="onboarding"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="auth" options={{ headerShown: false }} />
+        <Stack.Screen name="mart/index" options={{ headerShown: false }} />
+        <Stack.Screen name="food/index" options={{ headerShown: false }} />
+        <Stack.Screen name="ride/index" options={{ headerShown: false }} />
+        <Stack.Screen name="cart/index" options={{ headerShown: false }} />
         <Stack.Screen name="pharmacy/index" options={{ headerShown: false }} />
-        <Stack.Screen name="parcel/index"   options={{ headerShown: false }} />
-        <Stack.Screen name="categories/index" options={{ headerShown: false }} />
-        <Stack.Screen name="order/index"    options={{ headerShown: false }} />
-        <Stack.Screen name="orders/[id]"    options={{ headerShown: false }} />
-        <Stack.Screen name="school/index"   options={{ headerShown: false }} />
-        <Stack.Screen name="school/book"    options={{ headerShown: false }} />
+        <Stack.Screen name="parcel/index" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="categories/index"
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen name="order/index" options={{ headerShown: false }} />
+        <Stack.Screen name="orders/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="school/index" options={{ headerShown: false }} />
+        <Stack.Screen name="school/book" options={{ headerShown: false }} />
       </Stack>
     </>
   );
 }
 
-async function probeApiHealth(): Promise<{ reachable: boolean; url: string }> {
-  const url = `${API_BASE}/health`;
+async function probeApiHealth(
+  domain: string,
+): Promise<{ reachable: boolean; url: string }> {
+  const url = `https://${domain}/api/health`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 5000);
   try {
@@ -924,8 +1540,10 @@ async function probeApiHealth(): Promise<{ reachable: boolean; url: string }> {
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
   /* null = not yet checked, true = reachable, false = unreachable */
-  const [apiReachable, setApiReachable] = useState<boolean | null>(_domain ? null : true);
-  const [apiUrl, setApiUrl] = useState(`${API_BASE}/health`);
+  const [apiReachable, setApiReachable] = useState<boolean | null>(
+    _domain ? null : true,
+  );
+  const [apiUrl, setApiUrl] = useState(`https://${_domain}/api/health`);
   const [retrying, setRetrying] = useState(false);
 
   /* Register PWA service worker on web */
@@ -938,14 +1556,14 @@ export default function RootLayout() {
      the blocking ApiUnreachableScreen that renders below. */
   useEffect(() => {
     if (!_domain) return; // misconfig screen handles the no-domain case
-    probeApiHealth().then(({ reachable, url }) => {
+    probeApiHealth(_domain).then(({ reachable, url }) => {
       setApiUrl(url);
       setApiReachable(reachable);
       if (!reachable) {
         Alert.alert(
           "Cannot Reach Server",
           "AJKMart could not connect to the API server. Please check your connection and tap Retry.",
-          [{ text: "OK", style: "cancel" }]
+          [{ text: "OK", style: "cancel" }],
         );
       }
     });
@@ -967,7 +1585,8 @@ export default function RootLayout() {
 
     const loadAllFonts = async () => {
       try {
-        const timeout = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+        const timeout = (ms: number) =>
+          new Promise<void>((r) => setTimeout(r, ms));
 
         // Step 1: Load core Inter fonts — always required, fast (~300 KB).
         await Promise.race([
@@ -979,7 +1598,9 @@ export default function RootLayout() {
         // preference is Urdu. This prevents the large (~2.7 MB) font set
         // from being downloaded/registered on every cold start for
         // English-speaking users — which was the source of the startup error.
-        const savedLang = await AsyncStorage.getItem("@ajkmart_language").catch(() => null);
+        const savedLang = await AsyncStorage.getItem("@ajkmart_language").catch(
+          () => null,
+        );
         if (savedLang === "ur" || savedLang === "en_ur") {
           // Fire-and-forget; don't block the splash hide on Urdu font load.
           loadUrduFonts().catch(() => {});
@@ -1015,15 +1636,25 @@ export default function RootLayout() {
   if (!ready || (_domain && apiReachable === null)) {
     return (
       <WebShell>
-        <View style={{ flex: 1, backgroundColor: "#0047B3", alignItems: "center", justifyContent: "center", gap: 20 }}>
-          <View style={{
-            width: 72,
-            height: 72,
-            borderRadius: 20,
-            backgroundColor: "rgba(255,255,255,0.15)",
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "#0047B3",
             alignItems: "center",
             justifyContent: "center",
-          }}>
+            gap: 20,
+          }}
+        >
+          <View
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 20,
+              backgroundColor: "rgba(255,255,255,0.15)",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             <Text style={{ fontSize: 36 }}>🛒</Text>
           </View>
           <ActivityIndicator size="large" color="#ffffff" />
@@ -1043,7 +1674,11 @@ export default function RootLayout() {
   if (apiReachable === false) {
     return (
       <WebShell>
-        <ApiUnreachableScreen url={apiUrl} onRetry={handleRetry} retrying={retrying} />
+        <ApiUnreachableScreen
+          url={apiUrl}
+          onRetry={handleRetry}
+          retrying={retrying}
+        />
       </WebShell>
     );
   }
@@ -1051,15 +1686,23 @@ export default function RootLayout() {
   return (
     <WebShell>
       <SafeAreaProvider>
-        <ErrorBoundary onError={(error, stackTrace) => {
+        <ErrorBoundary
+          onError={(error, stackTrace) => {
             reportErrorToBackend({
               errorType: "frontend_crash",
               errorMessage: error.message || "Component crash",
               stackTrace: error.stack || stackTrace,
               componentName: "ErrorBoundary",
             });
-          }}>
-          <PersistQueryClientProvider client={queryClient} persistOptions={{ persister: asyncStoragePersister, maxAge: 1000 * 60 * 60 * 24 }}>
+          }}
+        >
+          <PersistQueryClientProvider
+            client={queryClient}
+            persistOptions={{
+              persister: asyncStoragePersister,
+              maxAge: 1000 * 60 * 60 * 24,
+            }}
+          >
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
                 <FontSizeProvider>

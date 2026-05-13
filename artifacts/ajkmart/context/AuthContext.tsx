@@ -1,6 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   setAuthTokenGetter,
@@ -10,7 +17,7 @@ import {
 } from "@workspace/api-client-react";
 import { useLanguage } from "./LanguageContext";
 import { io, type Socket } from "socket.io-client";
-import { API_BASE } from "@/utils/api";
+import { API_BASE, SOCKET_BASE } from "@/utils/api";
 
 export type UserRole = "customer" | "rider" | "vendor";
 
@@ -63,16 +70,20 @@ interface AuthContextType {
   clearSuspended: () => void;
   setBiometricEnabled: (enabled: boolean) => Promise<void>;
   setTwoFactorPending: (pending: TwoFactorPending | null) => void;
-  completeTwoFactorLogin: (user: AppUser, token: string, refreshToken?: string) => Promise<void>;
+  completeTwoFactorLogin: (
+    user: AppUser,
+    token: string,
+    refreshToken?: string,
+  ) => Promise<void>;
   attemptBiometricLogin: () => Promise<string | "transient_error" | null>;
   socket: Socket | null;
 }
 
-const TOKEN_KEY         = "ajkmart_token";
+const TOKEN_KEY = "ajkmart_token";
 const REFRESH_TOKEN_KEY = "ajkmart_refresh_token";
-const USER_KEY          = "@ajkmart_user";
-const BIOMETRIC_KEY     = "@ajkmart_biometric_enabled";
-const BIOMETRIC_TOKEN   = "ajkmart_biometric_token";
+const USER_KEY = "@ajkmart_user";
+const BIOMETRIC_KEY = "@ajkmart_biometric_enabled";
+const BIOMETRIC_TOKEN = "ajkmart_biometric_token";
 
 const LEGACY_TOKEN_KEY = "@ajkmart_token";
 const LEGACY_REFRESH_KEY = "@ajkmart_refresh_token";
@@ -87,8 +98,12 @@ async function secureGet(key: string): Promise<string | null> {
   return SecureStore.getItemAsync(key);
 }
 async function secureDelete(key: string) {
-  try { await SecureStore.deleteItemAsync(key); } catch {}
-  try { await AsyncStorage.removeItem(key); } catch {}
+  try {
+    await SecureStore.deleteItemAsync(key);
+  } catch {}
+  try {
+    await AsyncStorage.removeItem(key);
+  } catch {}
 }
 
 /* Migrate legacy AsyncStorage tokens to SecureStore and remove the unencrypted copies.
@@ -98,30 +113,50 @@ const MIGRATED_KEY = "ajkmart_legacy_migration_v1";
 async function migrateLegacyInsecureTokens(): Promise<boolean> {
   try {
     /* Check if already migrated on this device */
-    const alreadyMigrated = await SecureStore.getItemAsync(MIGRATED_KEY).catch(() => null);
+    const alreadyMigrated = await SecureStore.getItemAsync(MIGRATED_KEY).catch(
+      () => null,
+    );
     if (alreadyMigrated === "1") return false;
 
-    const legacyEntries = await AsyncStorage.multiGet([LEGACY_TOKEN_KEY, LEGACY_REFRESH_KEY]);
-    const legacyToken = (legacyEntries.length >= 1 && Array.isArray(legacyEntries[0]) && legacyEntries[0].length >= 2)
-      ? legacyEntries[0][1]
-      : null;
-    const legacyRefresh = (legacyEntries.length >= 2 && Array.isArray(legacyEntries[1]) && legacyEntries[1].length >= 2)
-      ? legacyEntries[1][1]
-      : null;
+    const legacyEntries = await AsyncStorage.multiGet([
+      LEGACY_TOKEN_KEY,
+      LEGACY_REFRESH_KEY,
+    ]);
+    const legacyToken =
+      legacyEntries.length >= 1 &&
+      Array.isArray(legacyEntries[0]) &&
+      legacyEntries[0].length >= 2
+        ? legacyEntries[0][1]
+        : null;
+    const legacyRefresh =
+      legacyEntries.length >= 2 &&
+      Array.isArray(legacyEntries[1]) &&
+      legacyEntries[1].length >= 2
+        ? legacyEntries[1][1]
+        : null;
     const hadLegacy = !!(legacyToken || legacyRefresh);
 
     if (hadLegacy) {
       /* Migrate tokens to SecureStore if not already present */
-      const existingToken = await SecureStore.getItemAsync(TOKEN_KEY).catch(() => null);
-      const existingRefresh = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY).catch(() => null);
+      const existingToken = await SecureStore.getItemAsync(TOKEN_KEY).catch(
+        () => null,
+      );
+      const existingRefresh = await SecureStore.getItemAsync(
+        REFRESH_TOKEN_KEY,
+      ).catch(() => null);
       if (!existingToken && legacyToken) {
         await SecureStore.setItemAsync(TOKEN_KEY, legacyToken).catch(() => {});
       }
       if (!existingRefresh && legacyRefresh) {
-        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, legacyRefresh).catch(() => {});
+        await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, legacyRefresh).catch(
+          () => {},
+        );
       }
       /* Remove the insecure copies */
-      await AsyncStorage.multiRemove([LEGACY_TOKEN_KEY, LEGACY_REFRESH_KEY]).catch(() => {});
+      await AsyncStorage.multiRemove([
+        LEGACY_TOKEN_KEY,
+        LEGACY_REFRESH_KEY,
+      ]).catch(() => {});
     }
 
     /* Mark migration as complete for this device */
@@ -134,7 +169,10 @@ async function migrateLegacyInsecureTokens(): Promise<boolean> {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-interface JwtClaims { exp: number; iat: number }
+interface JwtClaims {
+  exp: number;
+  iat: number;
+}
 
 function decodeJwtClaims(tok: string): JwtClaims | null {
   try {
@@ -144,19 +182,29 @@ function decodeJwtClaims(tok: string): JwtClaims | null {
     const b64Padded = (parts[1] ?? "")
       .replace(/-/g, "+")
       .replace(/_/g, "/")
-      .padEnd((parts[1]?.length ?? 0) + ((4 - ((parts[1]?.length ?? 0) % 4)) % 4), "=");
+      .padEnd(
+        (parts[1]?.length ?? 0) + ((4 - ((parts[1]?.length ?? 0) % 4)) % 4),
+        "=",
+      );
 
     let jsonStr: string;
     if (typeof atob === "function") {
-      const bytes = new Uint8Array(atob(b64Padded).split("").map(c => c.charCodeAt(0)));
+      const bytes = new Uint8Array(
+        atob(b64Padded)
+          .split("")
+          .map((c) => c.charCodeAt(0)),
+      );
       jsonStr = new TextDecoder().decode(bytes);
     } else {
       // Node environment - Buffer is available
-      jsonStr = (globalThis as any).Buffer.from(b64Padded, "base64").toString("utf8");
+      jsonStr = (globalThis as any).Buffer.from(b64Padded, "base64").toString(
+        "utf8",
+      );
     }
 
     const payload = JSON.parse(jsonStr);
-    if (typeof payload.exp !== "number" || typeof payload.iat !== "number") return null;
+    if (typeof payload.exp !== "number" || typeof payload.iat !== "number")
+      return null;
     return { exp: payload.exp, iat: payload.iat };
   } catch {
     return null;
@@ -176,7 +224,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSuspended, setIsSuspended] = useState(false);
   const [suspendedMessage, setSuspendedMessage] = useState("");
   const [biometricEnabled, setBiometricEnabledState] = useState(false);
-  const [twoFactorPending, setTwoFactorPending] = useState<TwoFactorPending | null>(null);
+  const [twoFactorPending, setTwoFactorPending] =
+    useState<TwoFactorPending | null>(null);
   const [socketState, setSocketState] = useState<Socket | null>(null);
   const { syncToServer, setAuthToken } = useLanguage();
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -184,10 +233,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const REFRESH_FAIL_CAP = 6;
 
   /* FIX 4: Refs so callbacks always see the latest user/token without stale closure */
-  const userRef  = useRef<AppUser | null>(null);
+  const userRef = useRef<AppUser | null>(null);
   const tokenRef = useRef<string | null>(null);
-  useEffect(() => { userRef.current  = user;  }, [user]);
-  useEffect(() => { tokenRef.current = token; }, [token]);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
 
   /* Ref to doLogout so registerAuth (empty-deps useCallback) can always call latest version */
   const doLogoutRef = useRef<() => Promise<void>>(async () => {});
@@ -228,7 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const clockCap = Math.max(exp * 1000 - Date.now() - 60_000, 10_000);
       refreshIn = Math.max(Math.min(lifetimeBased, clockCap), 10_000);
     }
-    
+
     refreshTimerRef.current = setTimeout(async () => {
       if (refreshingRef.current) return;
       refreshingRef.current = true;
@@ -251,25 +304,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return;
           }
           // Exponential backoff: 60s * 2^n, capped at 15 minutes
-          const backoff = Math.min(60_000 * Math.pow(2, refreshFailCountRef.current - 1), 15 * 60_000);
+          const backoff = Math.min(
+            60_000 * Math.pow(2, refreshFailCountRef.current - 1),
+            15 * 60_000,
+          );
           scheduleProactiveRefresh(tok, backoff);
           return;
         }
-        const data = await res.json() as { token?: string; refreshToken?: string };
+        const data = (await res.json()) as {
+          token?: string;
+          refreshToken?: string;
+        };
         if (!data.token) {
           refreshFailCountRef.current = (refreshFailCountRef.current ?? 0) + 1;
           if (refreshFailCountRef.current > REFRESH_FAIL_CAP) {
             await doLogoutRef.current();
             return;
           }
-          const backoff = Math.min(60_000 * Math.pow(2, refreshFailCountRef.current - 1), 15 * 60_000);
+          const backoff = Math.min(
+            60_000 * Math.pow(2, refreshFailCountRef.current - 1),
+            15 * 60_000,
+          );
           scheduleProactiveRefresh(tok, backoff);
           return;
         }
-        
+
         // Success: reset failure count
         refreshFailCountRef.current = 0;
-        
+
         const meRes = await fetch(`${API_BASE}/users/profile`, {
           headers: { Authorization: `Bearer ${data.token}` },
         });
@@ -293,7 +355,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await doLogoutRef.current();
           return;
         }
-        const backoff = Math.min(60_000 * Math.pow(2, refreshFailCountRef.current - 1), 15 * 60_000);
+        const backoff = Math.min(
+          60_000 * Math.pow(2, refreshFailCountRef.current - 1),
+          15 * 60_000,
+        );
         scheduleProactiveRefresh(tok, backoff);
       } finally {
         refreshingRef.current = false;
@@ -305,7 +370,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await fetch(`${API_BASE}/locations/clear`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${userToken}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${userToken}`,
+        },
         body: JSON.stringify({ userId }),
       });
     } catch {}
@@ -313,7 +381,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const doLogout = async () => {
     const tok = tokenRef.current;
-    const u   = userRef.current;
+    const u = userRef.current;
     if (u && hasRole(u, "customer") && tok) {
       clearCustomerLocation(u.id, tok).catch(() => {});
     }
@@ -325,7 +393,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     clearRefreshTimer();
-    await AsyncStorage.multiRemove([USER_KEY, "@ajkmart_cart", "@ajkmart_auth_return_to"]);
+    await AsyncStorage.multiRemove([
+      USER_KEY,
+      "@ajkmart_cart",
+      "@ajkmart_auth_return_to",
+    ]);
     await secureDelete(TOKEN_KEY);
     await secureDelete(REFRESH_TOKEN_KEY);
     await secureDelete(BIOMETRIC_TOKEN);
@@ -343,7 +415,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   /* FIX 4: Keep doLogoutRef always pointing to the latest doLogout */
-  useEffect(() => { doLogoutRef.current = doLogout; });
+  useEffect(() => {
+    doLogoutRef.current = doLogout;
+  });
 
   const registerAuth = useCallback((tok: string, refreshTok: string | null) => {
     setAuthTokenGetter(() => tok);
@@ -377,7 +451,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
            Let the individual screen handle it; do not show the suspension screen. */
         if (errorMsg === "Access denied. Customer account required.") return;
         setIsSuspended(true);
-        setSuspendedMessage(errorMsg || "Your account has been suspended. Contact support.");
+        setSuspendedMessage(
+          errorMsg || "Your account has been suspended. Contact support.",
+        );
         return;
       }
       await doLogoutRef.current();
@@ -418,7 +494,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const exp = decodeJwtExp(storedToken);
           // Tolerate up to CLOCK_SKEW_TOLERANCE_MS of device clock drift before
           // treating a stored token as expired; avoids false-expiry on skewed clocks.
-          const isExpired = exp ? exp * 1000 < Date.now() - CLOCK_SKEW_TOLERANCE_MS : false;
+          const isExpired = exp
+            ? exp * 1000 < Date.now() - CLOCK_SKEW_TOLERANCE_MS
+            : false;
 
           if (isExpired && storedRefresh) {
             try {
@@ -428,22 +506,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 body: JSON.stringify({ refreshToken: storedRefresh }),
               });
               if (refreshRes.ok) {
-                const data = await refreshRes.json() as { token?: string; refreshToken?: string; user?: AppUser };
+                const data = (await refreshRes.json()) as {
+                  token?: string;
+                  refreshToken?: string;
+                  user?: AppUser;
+                };
                 if (data.token) {
                   await secureSet(TOKEN_KEY, data.token);
-                  if (data.refreshToken) await secureSet(REFRESH_TOKEN_KEY, data.refreshToken);
+                  if (data.refreshToken)
+                    await secureSet(REFRESH_TOKEN_KEY, data.refreshToken);
                   /* Always fetch fresh profile from server (role-agnostic endpoint) to get latest roles */
                   let freshUser: AppUser = data.user || parsedUser;
                   try {
-                    const profileRes = await fetch(`${API_BASE}/users/profile`, {
-                      headers: { Authorization: `Bearer ${data.token}` },
-                    });
+                    const profileRes = await fetch(
+                      `${API_BASE}/users/profile`,
+                      {
+                        headers: { Authorization: `Bearer ${data.token}` },
+                      },
+                    );
                     if (profileRes.ok) {
                       const profileData = await profileRes.json();
-                      freshUser = profileData.data || profileData.user || profileData || freshUser;
+                      freshUser =
+                        profileData.data ||
+                        profileData.user ||
+                        profileData ||
+                        freshUser;
                     }
                   } catch {}
-                  await AsyncStorage.setItem(USER_KEY, JSON.stringify(freshUser));
+                  await AsyncStorage.setItem(
+                    USER_KEY,
+                    JSON.stringify(freshUser),
+                  );
                   setUser(freshUser);
                   setToken(data.token);
                   setAuthToken(data.token);
@@ -471,10 +564,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               });
               if (profileRes.ok) {
                 const profileData = await profileRes.json();
-                const freshUser: AppUser = profileData.data || profileData.user || profileData;
+                const freshUser: AppUser =
+                  profileData.data || profileData.user || profileData;
                 if (freshUser && freshUser.id) {
                   resolvedUser = freshUser;
-                  await AsyncStorage.setItem(USER_KEY, JSON.stringify(freshUser));
+                  await AsyncStorage.setItem(
+                    USER_KEY,
+                    JSON.stringify(freshUser),
+                  );
                 }
               }
             } catch {}
@@ -496,10 +593,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const Location = await import("expo-location");
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") return;
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
       await fetch(`${API_BASE}/locations/update`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${userToken}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${userToken}`,
+        },
         body: JSON.stringify({
           userId,
           latitude: pos.coords.latitude,
@@ -511,7 +613,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   };
 
-  const login = async (userData: AppUser, userToken: string, refreshToken?: string) => {
+  const login = async (
+    userData: AppUser,
+    userToken: string,
+    refreshToken?: string,
+  ) => {
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
     await secureSet(TOKEN_KEY, userToken);
     if (refreshToken) await secureSet(REFRESH_TOKEN_KEY, refreshToken);
@@ -527,7 +633,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const completeTwoFactorLogin = async (userData: AppUser, userToken: string, refreshToken?: string) => {
+  const completeTwoFactorLogin = async (
+    userData: AppUser,
+    userToken: string,
+    refreshToken?: string,
+  ) => {
     setTwoFactorPending(null);
     await login(userData, userToken, refreshToken);
   };
@@ -586,8 +696,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!result.success) {
         /* FIX 7: Only permanently disable biometric on actual hardware/lockout failures.
            User cancel or fallback should NOT disable it. */
-        const nonFatalErrors = ["user_cancel", "system_cancel", "user_fallback", "app_cancel"];
-        const isFatal = !!result.error && !nonFatalErrors.includes(result.error as string);
+        const nonFatalErrors = [
+          "user_cancel",
+          "system_cancel",
+          "user_fallback",
+          "app_cancel",
+        ];
+        const isFatal =
+          !!result.error && !nonFatalErrors.includes(result.error as string);
         if (isFatal) {
           await setBiometricEnabled(false);
         }
@@ -619,7 +735,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         /* Other server error (5xx, etc.) — transient; do NOT disable biometrics */
         return "transient_error";
       }
-      const data = await res.json() as { token?: string; refreshToken?: string };
+      const data = (await res.json()) as {
+        token?: string;
+        refreshToken?: string;
+      };
       if (!data.token) return null;
 
       const meRes = await fetch(`${API_BASE}/users/profile`, {
@@ -653,7 +772,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return;
     }
-    const socket = io(API_BASE.replace(/\/api$/, ""), {
+    const socket = io(SOCKET_BASE, {
       path: "/api/socket.io",
       auth: { token },
       transports: ["websocket", "polling"],
@@ -663,12 +782,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const handleWalletBalance = (payload: { balance: number }) => {
       if (typeof payload?.balance === "number") {
-        setUser(prev => prev ? { ...prev, walletBalance: String(payload.balance) } : prev);
-        AsyncStorage.getItem(USER_KEY).then(stored => {
+        setUser((prev) =>
+          prev ? { ...prev, walletBalance: String(payload.balance) } : prev,
+        );
+        AsyncStorage.getItem(USER_KEY).then((stored) => {
           if (!stored) return;
           try {
             const parsed = JSON.parse(stored);
-            AsyncStorage.setItem(USER_KEY, JSON.stringify({ ...parsed, walletBalance: payload.balance }));
+            AsyncStorage.setItem(
+              USER_KEY,
+              JSON.stringify({ ...parsed, walletBalance: payload.balance }),
+            );
           } catch {}
         });
       }
@@ -687,15 +811,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isCustomer = hasRole(user, "customer");
 
   return (
-    <AuthContext.Provider value={{
-      user, token, isLoading, isSuspended, suspendedMessage,
-      biometricEnabled, twoFactorPending,
-      isCustomer,
-      login, logout, updateUser, clearSuspended,
-      setBiometricEnabled, setTwoFactorPending,
-      completeTwoFactorLogin, attemptBiometricLogin,
-      socket: socketState,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isLoading,
+        isSuspended,
+        suspendedMessage,
+        biometricEnabled,
+        twoFactorPending,
+        isCustomer,
+        login,
+        logout,
+        updateUser,
+        clearSuspended,
+        setBiometricEnabled,
+        setTwoFactorPending,
+        completeTwoFactorLogin,
+        attemptBiometricLogin,
+        socket: socketState,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

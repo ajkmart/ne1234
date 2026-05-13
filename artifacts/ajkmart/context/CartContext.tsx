@@ -1,11 +1,18 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import { createLogger } from "@/utils/logger";
 const log = createLogger("[Cart]");
 import { Alert } from "react-native";
 import { useAuth } from "@/context/AuthContext";
 import { useCurrency } from "@/context/PlatformConfigContext";
-import { unwrapApiResponse } from "../utils/api";
+import { unwrapApiResponse, API_BASE } from "../utils/api";
 
 export interface CartItem {
   productId: string;
@@ -55,18 +62,22 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | null>(null);
 
-const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`;
-
 /* ── Cart snapshot helpers ──────────────────────────────────────────────────
    All three functions are fire-and-forget: they never throw and never affect
    the local cart state. Token is passed explicitly so we don't close over a
    potentially-stale ref inside useEffect. */
 
-async function saveCartSnapshot(items: CartItem[], token: string): Promise<void> {
+async function saveCartSnapshot(
+  items: CartItem[],
+  token: string,
+): Promise<void> {
   try {
     await fetch(`${API_BASE}/cart/snapshot`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ items }),
     });
   } catch {
@@ -81,7 +92,9 @@ async function fetchCartSnapshot(token: string): Promise<CartItem[] | null> {
     });
     if (!res.ok) return null;
     const data = unwrapApiResponse<{ items?: CartItem[] }>(await res.json());
-    return Array.isArray(data.items) && data.items.length > 0 ? data.items : null;
+    return Array.isArray(data.items) && data.items.length > 0
+      ? data.items
+      : null;
   } catch {
     return null;
   }
@@ -99,13 +112,24 @@ async function clearCartSnapshot(token: string): Promise<void> {
 }
 
 /* ── Debounce helper ── */
-function makeDebounced<T extends unknown[]>(fn: (...args: T) => void, delay: number) {
+function makeDebounced<T extends unknown[]>(
+  fn: (...args: T) => void,
+  delay: number,
+) {
   let timer: ReturnType<typeof setTimeout> | null = null;
   const debounced = (...args: T) => {
     if (timer) clearTimeout(timer);
-    timer = setTimeout(() => { timer = null; fn(...args); }, delay);
+    timer = setTimeout(() => {
+      timer = null;
+      fn(...args);
+    }, delay);
   };
-  const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  const cancel = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
   return { debounced, cancel };
 }
 
@@ -123,7 +147,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const pendingOrderIdRef = useRef<string | null>(null);
   const pendingOrderDataRef = useRef<AckSuccessData | null>(null);
   const ackStuckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ackFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ackFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const ackFallbackIvRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ackResolvedRef = useRef(false);
   /* Generation counter — incremented on every local cart mutation so that a
@@ -132,22 +158,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const cartGenRef = useRef(0);
 
   /* Debounced server snapshot save (800 ms) with cancel support. */
-  const debouncedSaveRef = useRef<((...args: [CartItem[], string]) => void) | null>(null);
+  const debouncedSaveRef = useRef<
+    ((...args: [CartItem[], string]) => void) | null
+  >(null);
   const cancelDebouncedSaveRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     const { debounced, cancel } = makeDebounced(
-      (cartItems: CartItem[], tkn: string) => { saveCartSnapshot(cartItems, tkn); },
+      (cartItems: CartItem[], tkn: string) => {
+        saveCartSnapshot(cartItems, tkn);
+      },
       800,
     );
     debouncedSaveRef.current = debounced;
     cancelDebouncedSaveRef.current = cancel;
-    return () => { cancel(); };
+    return () => {
+      cancel();
+    };
   }, []);
 
   /* Stable ref so the token-change effect can read hasLoaded without
      adding it to the dependency array (avoids prevTokenRef drift). */
   const hasLoadedRef = useRef(false);
-  useEffect(() => { hasLoadedRef.current = hasLoaded; }, [hasLoaded]);
+  useEffect(() => {
+    hasLoadedRef.current = hasLoaded;
+  }, [hasLoaded]);
 
   useEffect(() => {
     authTokenRef.current = token;
@@ -156,7 +190,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const save = (updater: CartItem[] | ((prev: CartItem[]) => CartItem[])) => {
     cartGenRef.current += 1;
     if (typeof updater === "function") {
-      setItems(prev => {
+      setItems((prev) => {
         const newItems = updater(prev);
         AsyncStorage.setItem("@ajkmart_cart", JSON.stringify(newItems));
         /* Debounced server sync — only when logged in */
@@ -175,9 +209,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetAckState = useCallback(() => {
-    if (ackStuckTimerRef.current) { clearTimeout(ackStuckTimerRef.current); ackStuckTimerRef.current = null; }
-    if (ackFallbackTimerRef.current) { clearTimeout(ackFallbackTimerRef.current); ackFallbackTimerRef.current = null; }
-    if (ackFallbackIvRef.current) { clearInterval(ackFallbackIvRef.current); ackFallbackIvRef.current = null; }
+    if (ackStuckTimerRef.current) {
+      clearTimeout(ackStuckTimerRef.current);
+      ackStuckTimerRef.current = null;
+    }
+    if (ackFallbackTimerRef.current) {
+      clearTimeout(ackFallbackTimerRef.current);
+      ackFallbackTimerRef.current = null;
+    }
+    if (ackFallbackIvRef.current) {
+      clearInterval(ackFallbackIvRef.current);
+      ackFallbackIvRef.current = null;
+    }
     pendingOrderIdRef.current = null;
     pendingOrderDataRef.current = null;
     setPendingAck(false);
@@ -202,7 +245,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (!pending) return;
       if (!ackId) return;
       if (ackId !== pending) return;
-      if (ackStuckTimerRef.current) { clearTimeout(ackStuckTimerRef.current); ackStuckTimerRef.current = null; }
+      if (ackStuckTimerRef.current) {
+        clearTimeout(ackStuckTimerRef.current);
+        ackStuckTimerRef.current = null;
+      }
       const data = pendingOrderDataRef.current;
       pendingOrderIdRef.current = null;
       pendingOrderDataRef.current = null;
@@ -227,8 +273,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (!ackId) return;
       if (ackId !== pending) return;
       pharmacyPendingOrderIdRef.current = null;
-      setItems(current => {
-        const remaining = current.filter(i => i.type !== "pharmacy");
+      setItems((current) => {
+        const remaining = current.filter((i) => i.type !== "pharmacy");
         AsyncStorage.setItem("@ajkmart_cart", JSON.stringify(remaining));
         /* Sync the updated cart (pharmacy items removed) to server */
         if (authTokenRef.current) {
@@ -248,13 +294,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   /* ── Load local cart from AsyncStorage on mount ── */
   useEffect(() => {
     const timer = setTimeout(() => {
-      AsyncStorage.getItem("@ajkmart_cart").then(stored => {
-        if (!stored) { setHasLoaded(true); return; }
+      AsyncStorage.getItem("@ajkmart_cart").then((stored) => {
+        if (!stored) {
+          setHasLoaded(true);
+          return;
+        }
         try {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed)) setItems(parsed);
         } catch (parseErr) {
-          log.warn("Failed to parse stored cart — clearing:", parseErr instanceof Error ? parseErr.message : String(parseErr));
+          log.warn(
+            "Failed to parse stored cart — clearing:",
+            parseErr instanceof Error ? parseErr.message : String(parseErr),
+          );
           AsyncStorage.removeItem("@ajkmart_cart");
         }
         setHasLoaded(true);
@@ -292,11 +344,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
          2. Append any local items not already present in the server cart (by productId)
          3. Push the merged result back to server */
       snapshotRestoredRef.current = true;
-      fetchCartSnapshot(token).then(serverItems => {
-        setItems(localItems => {
+      fetchCartSnapshot(token).then((serverItems) => {
+        setItems((localItems) => {
           const base = serverItems ?? [];
-          const serverIds = new Set(base.map(i => i.productId));
-          const newLocalOnly = localItems.filter(i => !serverIds.has(i.productId));
+          const serverIds = new Set(base.map((i) => i.productId));
+          const newLocalOnly = localItems.filter(
+            (i) => !serverIds.has(i.productId),
+          );
           const merged = [...base, ...newLocalOnly];
           if (merged.length > 0) {
             AsyncStorage.setItem("@ajkmart_cart", JSON.stringify(merged));
@@ -317,11 +371,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
        2. Append local-only items not already in server cart (by productId)
        3. Push merged result back to server */
     snapshotRestoredRef.current = true;
-    fetchCartSnapshot(token).then(serverItems => {
-      setItems(localItems => {
+    fetchCartSnapshot(token).then((serverItems) => {
+      setItems((localItems) => {
         const base = serverItems ?? [];
-        const serverIds = new Set(base.map(i => i.productId));
-        const newLocalOnly = localItems.filter(i => !serverIds.has(i.productId));
+        const serverIds = new Set(base.map((i) => i.productId));
+        const newLocalOnly = localItems.filter(
+          (i) => !serverIds.has(i.productId),
+        );
         const merged = [...base, ...newLocalOnly];
         if (merged.length > 0) {
           AsyncStorage.setItem("@ajkmart_cart", JSON.stringify(merged));
@@ -338,7 +394,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [hasLoaded, token]);
 
-  const validateCartItems = async (cartItems: CartItem[]): Promise<CartValidationResult> => {
+  const validateCartItems = async (
+    cartItems: CartItem[],
+  ): Promise<CartValidationResult> => {
     if (cartItems.length === 0) return { valid: true, cartChanged: false };
     setIsValidating(true);
     /* Snapshot the generation counter before the async fetch so we can detect
@@ -351,10 +409,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           const SS = await import("expo-secure-store");
           storedToken = await SS.getItemAsync("ajkmart_token");
         } catch (ssErr) {
-          log.warn("SecureStore token read failed:", ssErr instanceof Error ? ssErr.message : String(ssErr));
+          log.warn(
+            "SecureStore token read failed:",
+            ssErr instanceof Error ? ssErr.message : String(ssErr),
+          );
         }
       }
-      if (!storedToken) storedToken = await AsyncStorage.getItem("@ajkmart_token");
+      if (!storedToken)
+        storedToken = await AsyncStorage.getItem("@ajkmart_token");
       const res = await fetch(`${API_BASE}/orders/validate-cart`, {
         method: "POST",
         headers: {
@@ -367,7 +429,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setIsValidating(false);
         return { valid: false, cartChanged: false };
       }
-      const data = unwrapApiResponse<{ valid?: boolean; items?: unknown[]; removed?: string[]; priceChanges?: Array<{ name: string; oldPrice: number; newPrice: number }> }>(await res.json());
+      const data = unwrapApiResponse<{
+        valid?: boolean;
+        items?: unknown[];
+        removed?: string[];
+        priceChanges?: Array<{
+          name: string;
+          oldPrice: number;
+          newPrice: number;
+        }>;
+      }>(await res.json());
       /* Discard stale response — user modified the cart while this request was in-flight */
       if (cartGenRef.current !== genAtStart) {
         setIsValidating(false);
@@ -384,14 +455,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           messages.push(`Removed (unavailable): ${data.removed!.join(", ")}`);
         }
         if ((data.priceChanges?.length ?? 0) > 0) {
-          const changes = data.priceChanges!.map((c) => `${c.name}: ${currencySymbol}${c.oldPrice} → ${currencySymbol}${c.newPrice}`).join("\n");
+          const changes = data
+            .priceChanges!.map(
+              (c) =>
+                `${c.name}: ${currencySymbol}${c.oldPrice} → ${currencySymbol}${c.newPrice}`,
+            )
+            .join("\n");
           messages.push(`Prices updated:\n${changes}`);
         }
         if (messages.length > 0) {
-          await new Promise<void>(resolve => {
-            Alert.alert("Cart Updated", messages.join("\n\n") + "\n\nPlease review your cart before placing the order.", [
-              { text: "Review Cart", onPress: () => resolve() },
-            ]);
+          await new Promise<void>((resolve) => {
+            Alert.alert(
+              "Cart Updated",
+              messages.join("\n\n") +
+                "\n\nPlease review your cart before placing the order.",
+              [{ text: "Review Cart", onPress: () => resolve() }],
+            );
           });
         }
         setIsValidating(false);
@@ -404,7 +483,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       Alert.alert(
         "Validation Error",
         "Could not validate your cart. Please check your connection and try again.",
-        [{ text: "OK" }]
+        [{ text: "OK" }],
       );
       return { valid: false, cartChanged: false };
     }
@@ -417,38 +496,64 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const MAX_ITEM_QTY = 99;
 
   const addItem = (item: CartItem) => {
-    save(prev => {
-      const existing = prev.find(i => i.productId === item.productId);
+    save((prev) => {
+      const existing = prev.find((i) => i.productId === item.productId);
       if (existing) {
         if (existing.quantity >= MAX_ITEM_QTY) {
-          setTimeout(() => Alert.alert("Limit Reached", `Maximum quantity per item is ${MAX_ITEM_QTY}.`), 0);
+          setTimeout(
+            () =>
+              Alert.alert(
+                "Limit Reached",
+                `Maximum quantity per item is ${MAX_ITEM_QTY}.`,
+              ),
+            0,
+          );
           return prev;
         }
-        return prev.map(i => i.productId === item.productId ? { ...i, quantity: Math.min(i.quantity + 1, MAX_ITEM_QTY) } : i);
+        return prev.map((i) =>
+          i.productId === item.productId
+            ? { ...i, quantity: Math.min(i.quantity + 1, MAX_ITEM_QTY) }
+            : i,
+        );
       }
 
-      const types = [...new Set(prev.map(i => i.type))];
+      const types = [...new Set(prev.map((i) => i.type))];
       const currentType = types.length === 1 ? types[0] : null;
 
       if (prev.length > 0 && currentType === null) {
-        setTimeout(() => Alert.alert("Mixed Cart", "Your cart has mixed items. Please clear your cart before adding new items.", [{ text: "OK" }]), 0);
+        setTimeout(
+          () =>
+            Alert.alert(
+              "Mixed Cart",
+              "Your cart has mixed items. Please clear your cart before adding new items.",
+              [{ text: "OK" }],
+            ),
+          0,
+        );
         return prev;
       }
 
       if (currentType && currentType !== item.type && prev.length > 0) {
-        const nameFor = (t: string) => t === "mart" ? "Mart" : t === "food" ? "Food" : "Pharmacy";
-        setTimeout(() => Alert.alert(
-          "Mixed Cart",
-          `Your cart has items from ${nameFor(currentType)}. Adding ${nameFor(item.type)} items will clear your cart. Continue?`,
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Yes, Clear & Add",
-              style: "destructive",
-              onPress: () => { save([item]); },
-            },
-          ]
-        ), 0);
+        const nameFor = (t: string) =>
+          t === "mart" ? "Mart" : t === "food" ? "Food" : "Pharmacy";
+        setTimeout(
+          () =>
+            Alert.alert(
+              "Mixed Cart",
+              `Your cart has items from ${nameFor(currentType)}. Adding ${nameFor(item.type)} items will clear your cart. Continue?`,
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Yes, Clear & Add",
+                  style: "destructive",
+                  onPress: () => {
+                    save([item]);
+                  },
+                },
+              ],
+            ),
+          0,
+        );
         return prev;
       }
 
@@ -456,15 +561,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const removeItem = (productId: string) => save(prev => prev.filter(i => i.productId !== productId));
+  const removeItem = (productId: string) =>
+    save((prev) => prev.filter((i) => i.productId !== productId));
 
   const updateQuantity = (productId: string, qty: number) => {
     if (qty <= 0) return removeItem(productId);
     if (qty > MAX_ITEM_QTY) {
-      Alert.alert("Limit Reached", `Maximum quantity per item is ${MAX_ITEM_QTY}.`);
+      Alert.alert(
+        "Limit Reached",
+        `Maximum quantity per item is ${MAX_ITEM_QTY}.`,
+      );
       return;
     }
-    save(prev => prev.map(i => i.productId === productId ? { ...i, quantity: qty } : i));
+    save((prev) =>
+      prev.map((i) =>
+        i.productId === productId ? { ...i, quantity: qty } : i,
+      ),
+    );
   };
 
   const clearCart = () => {
@@ -489,17 +602,22 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
   const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
-  const types = [...new Set(items.map(i => i.type))];
+  const types = [...new Set(items.map((i) => i.type))];
   const cartType: "mart" | "food" | "pharmacy" | "mixed" | "none" =
-    types.length === 0 ? "none" :
-    types.length === 1 ? (types[0] as "mart" | "food" | "pharmacy") :
-    "mixed";
+    types.length === 0
+      ? "none"
+      : types.length === 1
+        ? (types[0] as "mart" | "food" | "pharmacy")
+        : "mixed";
 
   const setPharmacyPendingOrderId = (id: string | null) => {
     pharmacyPendingOrderIdRef.current = id;
   };
 
-  const setPendingOrderId = (id: string | null, data?: AckSuccessData | null) => {
+  const setPendingOrderId = (
+    id: string | null,
+    data?: AckSuccessData | null,
+  ) => {
     pendingOrderIdRef.current = id;
     pendingOrderDataRef.current = data ?? null;
     if (id) ackResolvedRef.current = false;
@@ -509,9 +627,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (ackResolvedRef.current) return;
     ackResolvedRef.current = true;
     const data = pendingOrderDataRef.current;
-    if (ackStuckTimerRef.current) { clearTimeout(ackStuckTimerRef.current); ackStuckTimerRef.current = null; }
-    if (ackFallbackTimerRef.current) { clearTimeout(ackFallbackTimerRef.current); ackFallbackTimerRef.current = null; }
-    if (ackFallbackIvRef.current) { clearInterval(ackFallbackIvRef.current); ackFallbackIvRef.current = null; }
+    if (ackStuckTimerRef.current) {
+      clearTimeout(ackStuckTimerRef.current);
+      ackStuckTimerRef.current = null;
+    }
+    if (ackFallbackTimerRef.current) {
+      clearTimeout(ackFallbackTimerRef.current);
+      ackFallbackTimerRef.current = null;
+    }
+    if (ackFallbackIvRef.current) {
+      clearInterval(ackFallbackIvRef.current);
+      ackFallbackIvRef.current = null;
+    }
     pendingOrderIdRef.current = null;
     pendingOrderDataRef.current = null;
     setAckStuck(false);
@@ -528,21 +655,39 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         headers: tkn ? { Authorization: `Bearer ${tkn}` } : {},
       });
       if (res.ok) {
-        const d = unwrapApiResponse<{ order?: { id?: string; status?: string }; id?: string; status?: string }>(await res.json());
+        const d = unwrapApiResponse<{
+          order?: { id?: string; status?: string };
+          id?: string;
+          status?: string;
+        }>(await res.json());
         const order = d.order || d;
         /* Only resolve if the order has moved past "pending" — prevents prematurely
            clearing the cart while the backend is still processing payment. */
         const ACKNOWLEDGED_STATUSES = [
-          "confirmed", "preparing", "ready", "on_the_way", "picked_up",
-          "out_for_delivery", "delivered", "completed",
+          "confirmed",
+          "preparing",
+          "ready",
+          "on_the_way",
+          "picked_up",
+          "out_for_delivery",
+          "delivered",
+          "completed",
         ];
-        if (order && order.id && order.status && ACKNOWLEDGED_STATUSES.includes(order.status)) {
+        if (
+          order &&
+          order.id &&
+          order.status &&
+          ACKNOWLEDGED_STATUSES.includes(order.status)
+        ) {
           resolveOrderAck(oid);
           return true;
         }
       }
     } catch (fetchErr) {
-      log.warn("HTTP fallback order fetch failed:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+      log.warn(
+        "HTTP fallback order fetch failed:",
+        fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
+      );
     }
     return false;
   };
@@ -558,19 +703,29 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         attempts++;
         const resolved = await tryHttpFallback();
         if (resolved) {
-          if (ackFallbackIvRef.current) { clearInterval(ackFallbackIvRef.current); ackFallbackIvRef.current = null; }
+          if (ackFallbackIvRef.current) {
+            clearInterval(ackFallbackIvRef.current);
+            ackFallbackIvRef.current = null;
+          }
         } else if (attempts >= 6) {
           /* All retries exhausted — resolve with a "payment received" banner so
              the user is never permanently stuck on the cart/pending screen.
              The order was already placed (wallet deducted); clearing pending
              state lets the user navigate away and check order history. */
-          if (ackFallbackIvRef.current) { clearInterval(ackFallbackIvRef.current); ackFallbackIvRef.current = null; }
+          if (ackFallbackIvRef.current) {
+            clearInterval(ackFallbackIvRef.current);
+            ackFallbackIvRef.current = null;
+          }
           const oid = pendingOrderIdRef.current;
           if (oid && !ackResolvedRef.current) {
             const data = pendingOrderDataRef.current;
             resolveOrderAck(oid);
             if (!data) {
-              setOrderSuccess({ id: oid, time: new Date().toISOString(), payMethod: undefined });
+              setOrderSuccess({
+                id: oid,
+                time: new Date().toISOString(),
+                payMethod: undefined,
+              });
             }
           }
         }
@@ -586,25 +741,50 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const cancelAckStuckTimer = () => {
-    if (ackStuckTimerRef.current) { clearTimeout(ackStuckTimerRef.current); ackStuckTimerRef.current = null; }
-    if (ackFallbackTimerRef.current) { clearTimeout(ackFallbackTimerRef.current); ackFallbackTimerRef.current = null; }
-    if (ackFallbackIvRef.current) { clearInterval(ackFallbackIvRef.current); ackFallbackIvRef.current = null; }
+    if (ackStuckTimerRef.current) {
+      clearTimeout(ackStuckTimerRef.current);
+      ackStuckTimerRef.current = null;
+    }
+    if (ackFallbackTimerRef.current) {
+      clearTimeout(ackFallbackTimerRef.current);
+      ackFallbackTimerRef.current = null;
+    }
+    if (ackFallbackIvRef.current) {
+      clearInterval(ackFallbackIvRef.current);
+      ackFallbackIvRef.current = null;
+    }
   };
 
   const clearOrderSuccess = () => setOrderSuccess(null);
 
   return (
-    <CartContext.Provider value={{
-      items, itemCount, total, cartType,
-      addItem, removeItem, updateQuantity,
-      clearCart, clearCartAndAdd, clearCartOnAck, restoreCart, validateCart, isValidating,
-      pendingAck, setPendingAck,
-      ackStuck,
-      orderSuccess, clearOrderSuccess,
-      setPendingOrderId, startAckStuckTimer, cancelAckStuckTimer,
-      dismissAck,
-      setPharmacyPendingOrderId,
-    }}>
+    <CartContext.Provider
+      value={{
+        items,
+        itemCount,
+        total,
+        cartType,
+        addItem,
+        removeItem,
+        updateQuantity,
+        clearCart,
+        clearCartAndAdd,
+        clearCartOnAck,
+        restoreCart,
+        validateCart,
+        isValidating,
+        pendingAck,
+        setPendingAck,
+        ackStuck,
+        orderSuccess,
+        clearOrderSuccess,
+        setPendingOrderId,
+        startAckStuckTimer,
+        cancelAckStuckTimer,
+        dismissAck,
+        setPharmacyPendingOrderId,
+      }}
+    >
       {children}
     </CartContext.Provider>
   );

@@ -5,33 +5,56 @@ import { useQuery } from "@tanstack/react-query";
 
 import Colors, { spacing, shadows } from "@/constants/colors";
 import { Font } from "@/constants/typography";
+import { API_BASE } from "@/utils/api";
 
 const C = Colors.light;
 const H_PAD = spacing.lg;
-const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`;
 
-export function ServiceStatsStrip({ rideCfg, features }: {
+export function ServiceStatsStrip({
+  rideCfg,
+  features,
+}: {
   rideCfg: { bikeMinFare: number };
   features: { mart: boolean; food: boolean; rides: boolean };
 }) {
-  const { data, isLoading } = useQuery<{ productCount?: number; restaurantCount?: number }>({
+  const { data, isLoading } = useQuery<{
+    productCount?: number;
+    restaurantCount?: number;
+  }>({
     queryKey: ["home-service-stats"],
     queryFn: async () => {
       const r = await fetch(`${API_BASE}/stats/public`);
       if (!r.ok) throw new Error("stats fetch failed");
-      return r.json().then((j: { data?: { productCount?: number; restaurantCount?: number } }) => (j?.data ?? j) as { productCount?: number; restaurantCount?: number });
+      return r
+        .json()
+        .then(
+          (j: { data?: { productCount?: number; restaurantCount?: number } }) =>
+            (j?.data ?? j) as {
+              productCount?: number;
+              restaurantCount?: number;
+            },
+        );
     },
     staleTime: 5 * 60_000,
     retry: 1,
   });
 
-  const stats: { label: string; value: string; icon: keyof typeof Ionicons.glyphMap; color: string }[] = [];
+  const stats: {
+    label: string;
+    value: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    color: string;
+  }[] = [];
 
   if (features.mart) {
     const productCount: number = data?.productCount ?? 0;
     stats.push({
       label: "Products",
-      value: isLoading ? "…" : productCount > 0 ? `${productCount.toLocaleString()}+` : "—",
+      value: isLoading
+        ? "…"
+        : productCount > 0
+          ? `${productCount.toLocaleString()}+`
+          : "—",
       icon: "cube-outline",
       color: C.primary,
     });
@@ -41,7 +64,11 @@ export function ServiceStatsStrip({ rideCfg, features }: {
     const restaurantCount: number = data?.restaurantCount ?? 0;
     stats.push({
       label: "Restaurants",
-      value: isLoading ? "…" : restaurantCount > 0 ? `${restaurantCount}+` : "—",
+      value: isLoading
+        ? "…"
+        : restaurantCount > 0
+          ? `${restaurantCount}+`
+          : "—",
       icon: "restaurant-outline",
       color: C.food,
     });
@@ -78,15 +105,25 @@ export function ServiceStatsStrip({ rideCfg, features }: {
 
 const st = StyleSheet.create({
   wrap: {
-    flexDirection: "row", alignItems: "center",
-    marginHorizontal: H_PAD, marginTop: 8,
-    backgroundColor: C.surface, borderRadius: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: H_PAD,
+    marginTop: 8,
+    backgroundColor: C.surface,
+    borderRadius: 14,
     paddingVertical: 10,
-    borderWidth: 1, borderColor: C.borderLight,
+    borderWidth: 1,
+    borderColor: C.borderLight,
     ...shadows.sm,
   },
   item: { flex: 1, alignItems: "center", gap: 3 },
-  iconBox: { width: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  iconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   value: { fontFamily: Font.bold, fontSize: 13, color: C.text },
   label: { fontFamily: Font.regular, fontSize: 10, color: C.textMuted },
   divider: { width: 1, height: 36, backgroundColor: C.borderLight },

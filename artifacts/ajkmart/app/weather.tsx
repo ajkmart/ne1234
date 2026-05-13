@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { createLogger } from "@/utils/logger";
+import { withErrorBoundary } from "@/utils/withErrorBoundary";
 const log = createLogger("[Weather]");
 import { router } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
@@ -20,22 +21,46 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 
-import Colors, { spacing, radii, shadows, getFontFamily } from "@/constants/colors";
+import Colors, {
+  spacing,
+  radii,
+  shadows,
+  getFontFamily,
+} from "@/constants/colors";
 import { Font } from "@/constants/typography";
 
 const C = Colors.light;
 const W = Dimensions.get("window").width;
 
-const WMO_ICONS: Record<number, { icon: string; label: string; gradient: [string, string] }> = {
+const WMO_ICONS: Record<
+  number,
+  { icon: string; label: string; gradient: [string, string] }
+> = {
   0: { icon: "sunny", label: "Clear Sky", gradient: ["#4facfe", "#00f2fe"] },
-  1: { icon: "partly-sunny", label: "Mostly Clear", gradient: ["#a1c4fd", "#c2e9fb"] },
-  2: { icon: "partly-sunny", label: "Partly Cloudy", gradient: ["#89ABE3", "#B6CEE8"] },
+  1: {
+    icon: "partly-sunny",
+    label: "Mostly Clear",
+    gradient: ["#a1c4fd", "#c2e9fb"],
+  },
+  2: {
+    icon: "partly-sunny",
+    label: "Partly Cloudy",
+    gradient: ["#89ABE3", "#B6CEE8"],
+  },
   3: { icon: "cloudy", label: "Overcast", gradient: ["#8e9eab", "#eef2f3"] },
   45: { icon: "cloud", label: "Foggy", gradient: ["#bdc3c7", "#2c3e50"] },
   48: { icon: "cloud", label: "Icy Fog", gradient: ["#E0EAFC", "#CFDEF3"] },
-  51: { icon: "rainy", label: "Light Drizzle", gradient: ["#667db6", "#0082c8"] },
+  51: {
+    icon: "rainy",
+    label: "Light Drizzle",
+    gradient: ["#667db6", "#0082c8"],
+  },
   53: { icon: "rainy", label: "Drizzle", gradient: ["#5f72bd", "#9b23ea"] },
-  55: { icon: "rainy", label: "Heavy Drizzle", gradient: ["#373B44", "#4286f4"] },
+  55: {
+    icon: "rainy",
+    label: "Heavy Drizzle",
+    gradient: ["#373B44", "#4286f4"],
+  },
   61: { icon: "rainy", label: "Light Rain", gradient: ["#74b9ff", "#0984e3"] },
   63: { icon: "rainy", label: "Rain", gradient: ["#6190E8", "#A7BFE8"] },
   65: { icon: "rainy", label: "Heavy Rain", gradient: ["#414345", "#232526"] },
@@ -43,25 +68,74 @@ const WMO_ICONS: Record<number, { icon: string; label: string; gradient: [string
   73: { icon: "snow", label: "Snow", gradient: ["#c9d6ff", "#e2e2e2"] },
   75: { icon: "snow", label: "Heavy Snow", gradient: ["#8e9eab", "#eef2f3"] },
   80: { icon: "rainy", label: "Showers", gradient: ["#667db6", "#0082c8"] },
-  81: { icon: "rainy", label: "Moderate Showers", gradient: ["#373B44", "#4286f4"] },
-  82: { icon: "thunderstorm", label: "Heavy Showers", gradient: ["#232526", "#414345"] },
-  95: { icon: "thunderstorm", label: "Thunderstorm", gradient: ["#0f0c29", "#302b63"] },
-  96: { icon: "thunderstorm", label: "Thunderstorm + Hail", gradient: ["#141E30", "#243B55"] },
-  99: { icon: "thunderstorm", label: "Severe Thunderstorm", gradient: ["#0f0c29", "#24243e"] },
+  81: {
+    icon: "rainy",
+    label: "Moderate Showers",
+    gradient: ["#373B44", "#4286f4"],
+  },
+  82: {
+    icon: "thunderstorm",
+    label: "Heavy Showers",
+    gradient: ["#232526", "#414345"],
+  },
+  95: {
+    icon: "thunderstorm",
+    label: "Thunderstorm",
+    gradient: ["#0f0c29", "#302b63"],
+  },
+  96: {
+    icon: "thunderstorm",
+    label: "Thunderstorm + Hail",
+    gradient: ["#141E30", "#243B55"],
+  },
+  99: {
+    icon: "thunderstorm",
+    label: "Severe Thunderstorm",
+    gradient: ["#0f0c29", "#24243e"],
+  },
 };
 
 const SAVED_CITY_KEY = "weather_manual_city";
 const FORECAST_CACHE_TTL = 30 * 60_000;
 
 type ForecastData = {
-  current: { temp: number; code: number; windSpeed: number; humidity: number; feelsLike: number; uvIndex: number; pressure: number; visibility: number };
-  hourly: { time: string; temp: number; code: number; precipitation: number; windSpeed: number; humidity: number }[];
-  daily: { date: string; tempMax: number; tempMin: number; code: number; precipitation: number; windSpeed: number; uvIndex: number; sunrise: string; sunset: string }[];
+  current: {
+    temp: number;
+    code: number;
+    windSpeed: number;
+    humidity: number;
+    feelsLike: number;
+    uvIndex: number;
+    pressure: number;
+    visibility: number;
+  };
+  hourly: {
+    time: string;
+    temp: number;
+    code: number;
+    precipitation: number;
+    windSpeed: number;
+    humidity: number;
+  }[];
+  daily: {
+    date: string;
+    tempMax: number;
+    tempMin: number;
+    code: number;
+    precipitation: number;
+    windSpeed: number;
+    uvIndex: number;
+    sunrise: string;
+    sunset: string;
+  }[];
   locationName: string;
   isGps: boolean;
 };
 
-async function fetchForecast(lat: number, lng: number): Promise<Omit<ForecastData, "locationName" | "isGps">> {
+async function fetchForecast(
+  lat: number,
+  lng: number,
+): Promise<Omit<ForecastData, "locationName" | "isGps">> {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m,apparent_temperature,uv_index,surface_pressure,visibility&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_sum,wind_speed_10m_max,uv_index_max,sunrise,sunset&timezone=auto&forecast_days=7`;
   const resp = await fetch(url);
   if (!resp.ok) throw new Error("Weather fetch failed");
@@ -99,7 +173,8 @@ async function fetchForecast(lat: number, lng: number): Promise<Omit<ForecastDat
       tempMax: Math.round(data.daily.temperature_2m_max[i]),
       tempMin: Math.round(data.daily.temperature_2m_min[i]),
       code: data.daily.weather_code[i] ?? 0,
-      precipitation: Math.round((data.daily.precipitation_sum?.[i] ?? 0) * 10) / 10,
+      precipitation:
+        Math.round((data.daily.precipitation_sum?.[i] ?? 0) * 10) / 10,
       windSpeed: Math.round(data.daily.wind_speed_10m_max?.[i] ?? 0),
       uvIndex: Math.round((data.daily.uv_index_max?.[i] ?? 0) * 10) / 10,
       sunrise: data.daily.sunrise?.[i] ?? "",
@@ -112,18 +187,29 @@ async function fetchForecast(lat: number, lng: number): Promise<Omit<ForecastDat
 
 async function reverseGeocode(lat: number, lng: number): Promise<string> {
   try {
-    const result = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+    const result = await Location.reverseGeocodeAsync({
+      latitude: lat,
+      longitude: lng,
+    });
     if (result.length > 0) {
       const r = result[0];
-      return [r.city || r.subregion, r.region].filter(Boolean).join(", ") || "Current Location";
+      return (
+        [r.city || r.subregion, r.region].filter(Boolean).join(", ") ||
+        "Current Location"
+      );
     }
   } catch (err) {
-    log.warn("Reverse geocode failed:", err instanceof Error ? err.message : String(err));
+    log.warn(
+      "Reverse geocode failed:",
+      err instanceof Error ? err.message : String(err),
+    );
   }
   return "Current Location";
 }
 
-async function geocodeCity(city: string): Promise<{ lat: number; lng: number; name: string } | null> {
+async function geocodeCity(
+  city: string,
+): Promise<{ lat: number; lng: number; name: string } | null> {
   try {
     const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=5&language=en&format=json`;
     const resp = await fetch(url);
@@ -131,7 +217,11 @@ async function geocodeCity(city: string): Promise<{ lat: number; lng: number; na
     const data = await resp.json();
     if (!data.results?.length) return null;
     const r = data.results[0];
-    return { lat: r.latitude, lng: r.longitude, name: [r.name, r.admin1, r.country].filter(Boolean).join(", ") };
+    return {
+      lat: r.latitude,
+      lng: r.longitude,
+      name: [r.name, r.admin1, r.country].filter(Boolean).join(", "),
+    };
   } catch {
     return null;
   }
@@ -139,7 +229,9 @@ async function geocodeCity(city: string): Promise<{ lat: number; lng: number; na
 
 type Tab = "hourly" | "daily";
 
-export default function WeatherDetailScreen() {
+export default withErrorBoundary(WeatherDetailScreenInner);
+
+function WeatherDetailScreenInner() {
   const insets = useSafeAreaInsets();
   const { goBack } = useSmartBack();
   const [forecast, setForecast] = useState<ForecastData | null>(null);
@@ -148,35 +240,74 @@ export default function WeatherDetailScreen() {
   const [tab, setTab] = useState<Tab>("hourly");
   const [showCityInput, setShowCityInput] = useState(false);
   const [cityQuery, setCityQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<{ lat: number; lng: number; name: string }[]>([]);
+  const [searchResults, setSearchResults] = useState<
+    { lat: number; lng: number; name: string }[]
+  >([]);
   const [searching, setSearching] = useState(false);
-  const [savedCity, setSavedCity] = useState<{ lat: number; lng: number; name: string } | null>(null);
+  const [savedCity, setSavedCity] = useState<{
+    lat: number;
+    lng: number;
+    name: string;
+  } | null>(null);
 
-  const loadWeather = useCallback(async (manualCity?: { lat: number; lng: number; name: string }) => {
-    setLoading(true);
-    setError(null);
-    try {
-      let lat: number;
-      let lng: number;
-      let locName = "";
-      let isGps = false;
+  const loadWeather = useCallback(
+    async (manualCity?: { lat: number; lng: number; name: string }) => {
+      setLoading(true);
+      setError(null);
+      try {
+        let lat: number;
+        let lng: number;
+        let locName = "";
+        let isGps = false;
 
-      if (manualCity) {
-        lat = manualCity.lat;
-        lng = manualCity.lng;
-        locName = manualCity.name;
-        isGps = false;
-      } else {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === "granted") {
-          try {
-            const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-            lat = loc.coords.latitude;
-            lng = loc.coords.longitude;
-            locName = await reverseGeocode(lat, lng);
-            isGps = true;
-          } catch {
-            const saved = await AsyncStorage.getItem(SAVED_CITY_KEY).catch((err) => { log.warn("AsyncStorage read failed for saved city (gps fallback):", err); return null; });
+        if (manualCity) {
+          lat = manualCity.lat;
+          lng = manualCity.lng;
+          locName = manualCity.name;
+          isGps = false;
+        } else {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status === "granted") {
+            try {
+              const loc = await Location.getCurrentPositionAsync({
+                accuracy: Location.Accuracy.Balanced,
+              });
+              lat = loc.coords.latitude;
+              lng = loc.coords.longitude;
+              locName = await reverseGeocode(lat, lng);
+              isGps = true;
+            } catch {
+              const saved = await AsyncStorage.getItem(SAVED_CITY_KEY).catch(
+                (err) => {
+                  log.warn(
+                    "AsyncStorage read failed for saved city (gps fallback):",
+                    err,
+                  );
+                  return null;
+                },
+              );
+              if (saved) {
+                const parsed = JSON.parse(saved);
+                lat = parsed.lat;
+                lng = parsed.lng;
+                locName = parsed.name;
+                isGps = false;
+              } else {
+                setError("Could not get location. Add a city manually.");
+                setLoading(false);
+                return;
+              }
+            }
+          } else {
+            const saved = await AsyncStorage.getItem(SAVED_CITY_KEY).catch(
+              (err) => {
+                log.warn(
+                  "AsyncStorage read failed for saved city (no-gps):",
+                  err,
+                );
+                return null;
+              },
+            );
             if (saved) {
               const parsed = JSON.parse(saved);
               lat = parsed.lat;
@@ -184,62 +315,69 @@ export default function WeatherDetailScreen() {
               locName = parsed.name;
               isGps = false;
             } else {
-              setError("Could not get location. Add a city manually.");
+              setError("Location permission denied. Add a city manually.");
               setLoading(false);
               return;
             }
           }
-        } else {
-          const saved = await AsyncStorage.getItem(SAVED_CITY_KEY).catch((err) => { log.warn("AsyncStorage read failed for saved city (no-gps):", err); return null; });
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            lat = parsed.lat;
-            lng = parsed.lng;
-            locName = parsed.name;
-            isGps = false;
-          } else {
-            setError("Location permission denied. Add a city manually.");
-            setLoading(false);
-            return;
+        }
+
+        const cacheKey = `forecast_cache_${Math.round(lat * 10)}_${Math.round(lng * 10)}`;
+        const cached = await AsyncStorage.getItem(cacheKey).catch((err) => {
+          log.warn("AsyncStorage read failed for forecast cache:", err);
+          return null;
+        });
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (Date.now() - parsed._ts < FORECAST_CACHE_TTL) {
+              setForecast({ ...parsed, locationName: locName, isGps });
+              setLoading(false);
+              return;
+            }
+          } catch (parseErr) {
+            log.warn(
+              "Failed to parse forecast cache:",
+              parseErr instanceof Error ? parseErr.message : String(parseErr),
+            );
           }
         }
-      }
 
-      const cacheKey = `forecast_cache_${Math.round(lat * 10)}_${Math.round(lng * 10)}`;
-      const cached = await AsyncStorage.getItem(cacheKey).catch((err) => { log.warn("AsyncStorage read failed for forecast cache:", err); return null; });
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Date.now() - parsed._ts < FORECAST_CACHE_TTL) {
-            setForecast({ ...parsed, locationName: locName, isGps });
-            setLoading(false);
-            return;
-          }
-        } catch (parseErr) {
-          log.warn("Failed to parse forecast cache:", parseErr instanceof Error ? parseErr.message : String(parseErr));
-        }
+        const result = await fetchForecast(lat, lng);
+        const fullData = {
+          ...result,
+          locationName: locName,
+          isGps,
+          _ts: Date.now(),
+        };
+        AsyncStorage.setItem(cacheKey, JSON.stringify(fullData)).catch(
+          (err) => {
+            log.warn("Failed to cache forecast data:", err);
+          },
+        );
+        setForecast(fullData);
+      } catch (e) {
+        setError("Failed to load weather data. Please try again.");
       }
-
-      const result = await fetchForecast(lat, lng);
-      const fullData = { ...result, locationName: locName, isGps, _ts: Date.now() };
-      AsyncStorage.setItem(cacheKey, JSON.stringify(fullData)).catch((err) => {
-        log.warn("Failed to cache forecast data:", err);
-      });
-      setForecast(fullData);
-    } catch (e) {
-      setError("Failed to load weather data. Please try again.");
-    }
-    setLoading(false);
-  }, []);
+      setLoading(false);
+    },
+    [],
+  );
 
   useEffect(() => {
     (async () => {
-      const saved = await AsyncStorage.getItem(SAVED_CITY_KEY).catch((err) => { log.warn("AsyncStorage read failed for saved city:", err); return null; });
+      const saved = await AsyncStorage.getItem(SAVED_CITY_KEY).catch((err) => {
+        log.warn("AsyncStorage read failed for saved city:", err);
+        return null;
+      });
       if (saved) {
         try {
           setSavedCity(JSON.parse(saved));
         } catch (parseErr) {
-          log.warn("Failed to parse saved city:", parseErr instanceof Error ? parseErr.message : String(parseErr));
+          log.warn(
+            "Failed to parse saved city:",
+            parseErr instanceof Error ? parseErr.message : String(parseErr),
+          );
         }
       }
       loadWeather();
@@ -256,33 +394,43 @@ export default function WeatherDetailScreen() {
       if (!resp.ok) throw new Error(`City search failed (${resp.status})`);
       const data = await resp.json();
       if (data.results?.length) {
-        setSearchResults(data.results.map((r: any) => ({
-          lat: r.latitude,
-          lng: r.longitude,
-          name: [r.name, r.admin1, r.country].filter(Boolean).join(", "),
-        })));
+        setSearchResults(
+          data.results.map((r: any) => ({
+            lat: r.latitude,
+            lng: r.longitude,
+            name: [r.name, r.admin1, r.country].filter(Boolean).join(", "),
+          })),
+        );
       } else {
         setSearchResults([]);
         setError("No cities found. Try a different name.");
       }
     } catch (e) {
-      log.warn("City search failed:", e instanceof Error ? e.message : String(e));
+      log.warn(
+        "City search failed:",
+        e instanceof Error ? e.message : String(e),
+      );
       setSearchResults([]);
       setError("Search failed. Please check your connection and try again.");
     }
     setSearching(false);
   }, [cityQuery]);
 
-  const handleSelectCity = useCallback(async (city: { lat: number; lng: number; name: string }) => {
-    await AsyncStorage.setItem(SAVED_CITY_KEY, JSON.stringify(city)).catch((err) => {
-      log.warn("Failed to save selected city:", err);
-    });
-    setSavedCity(city);
-    setShowCityInput(false);
-    setCityQuery("");
-    setSearchResults([]);
-    loadWeather(city);
-  }, [loadWeather]);
+  const handleSelectCity = useCallback(
+    async (city: { lat: number; lng: number; name: string }) => {
+      await AsyncStorage.setItem(SAVED_CITY_KEY, JSON.stringify(city)).catch(
+        (err) => {
+          log.warn("Failed to save selected city:", err);
+        },
+      );
+      setSavedCity(city);
+      setShowCityInput(false);
+      setCityQuery("");
+      setSearchResults([]);
+      loadWeather(city);
+    },
+    [loadWeather],
+  );
 
   const handleUseGps = useCallback(async () => {
     setShowCityInput(false);
@@ -291,13 +439,24 @@ export default function WeatherDetailScreen() {
     loadWeather();
   }, [loadWeather]);
 
-  const VALID_IONICON_WEATHER = new Set(["sunny", "partly-sunny", "cloudy", "cloud", "rainy", "snow", "thunderstorm"]);
+  const VALID_IONICON_WEATHER = new Set([
+    "sunny",
+    "partly-sunny",
+    "cloudy",
+    "cloud",
+    "rainy",
+    "snow",
+    "thunderstorm",
+  ]);
   const safeWmoIcon = (icon: string): keyof typeof Ionicons.glyphMap => {
-    if (VALID_IONICON_WEATHER.has(icon)) return icon as keyof typeof Ionicons.glyphMap;
+    if (VALID_IONICON_WEATHER.has(icon))
+      return icon as keyof typeof Ionicons.glyphMap;
     log.warn("Invalid WMO icon name:", icon);
     return "cloud-outline";
   };
-  const wmo = forecast ? (WMO_ICONS[forecast.current.code] ?? WMO_ICONS[0]!) : WMO_ICONS[0]!;
+  const wmo = forecast
+    ? (WMO_ICONS[forecast.current.code] ?? WMO_ICONS[0]!)
+    : WMO_ICONS[0]!;
   const gradient = wmo.gradient;
 
   const formatTime = (iso: string) => {
@@ -318,19 +477,29 @@ export default function WeatherDetailScreen() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     if (d.getTime() === today.getTime()) return "Today";
     if (d.getTime() === tomorrow.getTime()) return "Tomorrow";
-    return d.toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric" });
+    return d.toLocaleDateString("en", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
   };
 
   const formatSunTime = (iso: string) => {
     if (!iso) return "--";
     const d = new Date(iso);
-    return d.toLocaleTimeString("en", { hour: "numeric", minute: "2-digit", hour12: true });
+    return d.toLocaleTimeString("en", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
   };
 
   const nowHourIndex = useMemo(() => {
     if (!forecast) return 0;
     const now = new Date();
-    const idx = forecast.hourly.findIndex(h => new Date(h.time).getHours() === now.getHours());
+    const idx = forecast.hourly.findIndex(
+      (h) => new Date(h.time).getHours() === now.getHours(),
+    );
     return Math.max(0, idx);
   }, [forecast]);
 
@@ -338,17 +507,36 @@ export default function WeatherDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#0f172a" }}>
-      <LinearGradient colors={gradient} style={{ position: "absolute", top: 0, left: 0, right: 0, height: 380 }} />
+      <LinearGradient
+        colors={gradient}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, height: 380 }}
+      />
 
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
         {/* Header */}
         <View style={[s.header, { paddingTop: insets.top + 8 }]}>
-          <TouchableOpacity onPress={goBack} style={s.backBtn} activeOpacity={0.7}>
+          <TouchableOpacity
+            onPress={goBack}
+            style={s.backBtn}
+            activeOpacity={0.7}
+          >
             <Ionicons name="chevron-back" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>Weather</Text>
-          <TouchableOpacity onPress={() => setShowCityInput(v => !v)} style={s.addCityBtn} activeOpacity={0.7}>
-            <Ionicons name={showCityInput ? "close" : "location"} size={18} color="#fff" />
+          <TouchableOpacity
+            onPress={() => setShowCityInput((v) => !v)}
+            style={s.addCityBtn}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={showCityInput ? "close" : "location"}
+              size={18}
+              color="#fff"
+            />
           </TouchableOpacity>
         </View>
 
@@ -367,23 +555,40 @@ export default function WeatherDetailScreen() {
                 returnKeyType="search"
                 autoFocus
               />
-              {searching && <ActivityIndicator size="small" color={C.primary} />}
+              {searching && (
+                <ActivityIndicator size="small" color={C.primary} />
+              )}
             </View>
             {savedCity && (
-              <TouchableOpacity onPress={handleUseGps} style={s.gpsBtn} activeOpacity={0.7}>
+              <TouchableOpacity
+                onPress={handleUseGps}
+                style={s.gpsBtn}
+                activeOpacity={0.7}
+              >
                 <Ionicons name="navigate" size={14} color={C.primary} />
                 <Text style={s.gpsBtnText}>Use GPS Location</Text>
               </TouchableOpacity>
             )}
             {searchResults.map((city, i) => (
-              <TouchableOpacity key={i} onPress={() => handleSelectCity(city)} style={s.resultRow} activeOpacity={0.7}>
+              <TouchableOpacity
+                key={i}
+                onPress={() => handleSelectCity(city)}
+                style={s.resultRow}
+                activeOpacity={0.7}
+              >
                 <Ionicons name="location-outline" size={16} color={C.primary} />
-                <Text style={s.resultText} numberOfLines={1}>{city.name}</Text>
+                <Text style={s.resultText} numberOfLines={1}>
+                  {city.name}
+                </Text>
               </TouchableOpacity>
             ))}
-            {searchResults.length === 0 && cityQuery.length > 0 && !searching && (
-              <Text style={s.noResult}>No cities found. Try a different name.</Text>
-            )}
+            {searchResults.length === 0 &&
+              cityQuery.length > 0 &&
+              !searching && (
+                <Text style={s.noResult}>
+                  No cities found. Try a different name.
+                </Text>
+              )}
           </View>
         )}
 
@@ -394,9 +599,16 @@ export default function WeatherDetailScreen() {
           </View>
         ) : error ? (
           <View style={s.errorWrap}>
-            <Ionicons name="cloud-offline-outline" size={48} color="rgba(255,255,255,0.6)" />
+            <Ionicons
+              name="cloud-offline-outline"
+              size={48}
+              color="rgba(255,255,255,0.6)"
+            />
             <Text style={s.errorText}>{error}</Text>
-            <TouchableOpacity onPress={() => setShowCityInput(true)} style={s.errorBtn}>
+            <TouchableOpacity
+              onPress={() => setShowCityInput(true)}
+              style={s.errorBtn}
+            >
               <Text style={s.errorBtnText}>Add City Manually</Text>
             </TouchableOpacity>
           </View>
@@ -405,40 +617,70 @@ export default function WeatherDetailScreen() {
             {/* Current weather hero */}
             <View style={s.heroWrap}>
               <View style={s.locationRow}>
-                <Ionicons name={forecast.isGps ? "navigate" : "location"} size={14} color="rgba(255,255,255,0.8)" />
+                <Ionicons
+                  name={forecast.isGps ? "navigate" : "location"}
+                  size={14}
+                  color="rgba(255,255,255,0.8)"
+                />
                 <Text style={s.locationText}>{forecast.locationName}</Text>
                 {forecast.isGps && <View style={s.gpsDot} />}
               </View>
               <Text style={s.heroTemp}>{forecast.current.temp}°</Text>
               <View style={s.heroCondRow}>
-                <Ionicons name={safeWmoIcon(wmo.icon)} size={24} color="rgba(255,255,255,0.9)" />
+                <Ionicons
+                  name={safeWmoIcon(wmo.icon)}
+                  size={24}
+                  color="rgba(255,255,255,0.9)"
+                />
                 <Text style={s.heroCondText}>{wmo.label}</Text>
               </View>
-              <Text style={s.heroFeelsLike}>Feels like {forecast.current.feelsLike}°C</Text>
+              <Text style={s.heroFeelsLike}>
+                Feels like {forecast.current.feelsLike}°C
+              </Text>
 
               {/* Quick stats */}
               <View style={s.statsRow}>
                 <View style={s.statItem}>
-                  <Ionicons name="water-outline" size={16} color="rgba(255,255,255,0.7)" />
+                  <Ionicons
+                    name="water-outline"
+                    size={16}
+                    color="rgba(255,255,255,0.7)"
+                  />
                   <Text style={s.statValue}>{forecast.current.humidity}%</Text>
                   <Text style={s.statLabel}>Humidity</Text>
                 </View>
                 <View style={s.statDivider} />
                 <View style={s.statItem}>
-                  <Ionicons name="speedometer-outline" size={16} color="rgba(255,255,255,0.7)" />
-                  <Text style={s.statValue}>{forecast.current.windSpeed} km/h</Text>
+                  <Ionicons
+                    name="speedometer-outline"
+                    size={16}
+                    color="rgba(255,255,255,0.7)"
+                  />
+                  <Text style={s.statValue}>
+                    {forecast.current.windSpeed} km/h
+                  </Text>
                   <Text style={s.statLabel}>Wind</Text>
                 </View>
                 <View style={s.statDivider} />
                 <View style={s.statItem}>
-                  <Ionicons name="sunny-outline" size={16} color="rgba(255,255,255,0.7)" />
+                  <Ionicons
+                    name="sunny-outline"
+                    size={16}
+                    color="rgba(255,255,255,0.7)"
+                  />
                   <Text style={s.statValue}>{forecast.current.uvIndex}</Text>
                   <Text style={s.statLabel}>UV Index</Text>
                 </View>
                 <View style={s.statDivider} />
                 <View style={s.statItem}>
-                  <Ionicons name="eye-outline" size={16} color="rgba(255,255,255,0.7)" />
-                  <Text style={s.statValue}>{forecast.current.visibility} km</Text>
+                  <Ionicons
+                    name="eye-outline"
+                    size={16}
+                    color="rgba(255,255,255,0.7)"
+                  />
+                  <Text style={s.statValue}>
+                    {forecast.current.visibility} km
+                  </Text>
                   <Text style={s.statLabel}>Visibility</Text>
                 </View>
               </View>
@@ -446,7 +688,7 @@ export default function WeatherDetailScreen() {
 
             {/* Tab selector */}
             <View style={s.tabRow}>
-              {(["hourly", "daily"] as Tab[]).map(t => (
+              {(["hourly", "daily"] as Tab[]).map((t) => (
                 <TouchableOpacity
                   key={t}
                   onPress={() => setTab(t)}
@@ -462,15 +704,28 @@ export default function WeatherDetailScreen() {
 
             {/* Hourly forecast */}
             {tab === "hourly" && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.hScroll} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={s.hScroll}
+                contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
+              >
                 {visibleHourly.slice(0, 24).map((h, i) => {
                   const hWmo = WMO_ICONS[h.code] ?? WMO_ICONS[0];
                   const isNow = i === 0;
                   return (
                     <View key={i} style={[s.hourCard, isNow && s.hourCardNow]}>
-                      <Text style={[s.hourTime, isNow && s.hourTimeNow]}>{isNow ? "Now" : formatTime(h.time)}</Text>
-                      <Ionicons name={safeWmoIcon(hWmo.icon)} size={22} color={isNow ? C.primary : C.textSecondary} />
-                      <Text style={[s.hourTemp, isNow && s.hourTempNow]}>{h.temp}°</Text>
+                      <Text style={[s.hourTime, isNow && s.hourTimeNow]}>
+                        {isNow ? "Now" : formatTime(h.time)}
+                      </Text>
+                      <Ionicons
+                        name={safeWmoIcon(hWmo.icon)}
+                        size={22}
+                        color={isNow ? C.primary : C.textSecondary}
+                      />
+                      <Text style={[s.hourTemp, isNow && s.hourTempNow]}>
+                        {h.temp}°
+                      </Text>
                       <View style={s.hourPrecipRow}>
                         <Ionicons name="water" size={10} color="#60a5fa" />
                         <Text style={s.hourPrecip}>{h.precipitation}%</Text>
@@ -486,8 +741,12 @@ export default function WeatherDetailScreen() {
               <View style={s.dailyWrap}>
                 {forecast.daily.map((d, i) => {
                   const dWmo = WMO_ICONS[d.code] ?? WMO_ICONS[0];
-                  const maxT = Math.max(...forecast.daily.map(dd => dd.tempMax));
-                  const minT = Math.min(...forecast.daily.map(dd => dd.tempMin));
+                  const maxT = Math.max(
+                    ...forecast.daily.map((dd) => dd.tempMax),
+                  );
+                  const minT = Math.min(
+                    ...forecast.daily.map((dd) => dd.tempMin),
+                  );
                   const range = maxT - minT || 1;
                   const barLeft = ((d.tempMin - minT) / range) * 100;
                   const barWidth = ((d.tempMax - d.tempMin) / range) * 100;
@@ -495,14 +754,25 @@ export default function WeatherDetailScreen() {
                   return (
                     <View key={i} style={s.dayRow}>
                       <Text style={s.dayName}>{formatDay(d.date)}</Text>
-                      <Ionicons name={safeWmoIcon(dWmo.icon)} size={20} color={C.textSecondary} style={{ width: 28 }} />
+                      <Ionicons
+                        name={safeWmoIcon(dWmo.icon)}
+                        size={20}
+                        color={C.textSecondary}
+                        style={{ width: 28 }}
+                      />
                       <Text style={s.dayTempMin}>{d.tempMin}°</Text>
                       <View style={s.dayBarTrack}>
                         <LinearGradient
                           colors={["#60a5fa", "#f97316"]}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
-                          style={[s.dayBarFill, { left: `${barLeft}%`, width: `${Math.max(barWidth, 8)}%` }]}
+                          style={[
+                            s.dayBarFill,
+                            {
+                              left: `${barLeft}%`,
+                              width: `${Math.max(barWidth, 8)}%`,
+                            },
+                          ]}
                         />
                       </View>
                       <Text style={s.dayTempMax}>{d.tempMax}°</Text>
@@ -518,34 +788,58 @@ export default function WeatherDetailScreen() {
                 <>
                   <View style={s.detailCard}>
                     <View style={s.detailCardHeader}>
-                      <Ionicons name="sunny-outline" size={14} color={C.primary} />
+                      <Ionicons
+                        name="sunny-outline"
+                        size={14}
+                        color={C.primary}
+                      />
                       <Text style={s.detailCardTitle}>Sunrise & Sunset</Text>
                     </View>
                     <View style={s.sunRow}>
                       <View style={s.sunItem}>
-                        <Ionicons name="arrow-up-outline" size={16} color="#f59e0b" />
-                        <Text style={s.sunTime}>{formatSunTime(forecast.daily[0].sunrise)}</Text>
+                        <Ionicons
+                          name="arrow-up-outline"
+                          size={16}
+                          color="#f59e0b"
+                        />
+                        <Text style={s.sunTime}>
+                          {formatSunTime(forecast.daily[0].sunrise)}
+                        </Text>
                         <Text style={s.sunLabel}>Sunrise</Text>
                       </View>
                       <View style={s.sunItem}>
-                        <Ionicons name="arrow-down-outline" size={16} color="#ef4444" />
-                        <Text style={s.sunTime}>{formatSunTime(forecast.daily[0].sunset)}</Text>
+                        <Ionicons
+                          name="arrow-down-outline"
+                          size={16}
+                          color="#ef4444"
+                        />
+                        <Text style={s.sunTime}>
+                          {formatSunTime(forecast.daily[0].sunset)}
+                        </Text>
                         <Text style={s.sunLabel}>Sunset</Text>
                       </View>
                     </View>
                   </View>
                   <View style={s.detailCard}>
                     <View style={s.detailCardHeader}>
-                      <Ionicons name="analytics-outline" size={14} color={C.primary} />
+                      <Ionicons
+                        name="analytics-outline"
+                        size={14}
+                        color={C.primary}
+                      />
                       <Text style={s.detailCardTitle}>Pressure & Rain</Text>
                     </View>
                     <View style={s.sunRow}>
                       <View style={s.sunItem}>
-                        <Text style={s.sunTime}>{forecast.current.pressure} hPa</Text>
+                        <Text style={s.sunTime}>
+                          {forecast.current.pressure} hPa
+                        </Text>
                         <Text style={s.sunLabel}>Pressure</Text>
                       </View>
                       <View style={s.sunItem}>
-                        <Text style={s.sunTime}>{forecast.daily[0].precipitation} mm</Text>
+                        <Text style={s.sunTime}>
+                          {forecast.daily[0].precipitation} mm
+                        </Text>
                         <Text style={s.sunLabel}>Rain Today</Text>
                       </View>
                     </View>
@@ -713,7 +1007,14 @@ const s = StyleSheet.create({
     fontSize: 80,
     color: "#fff",
     lineHeight: 90,
-    ...Platform.select({ web: { textShadow: "0px 2px 8px rgba(0,0,0,0.15)" }, default: { textShadowColor: "rgba(0,0,0,0.15)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 } }),
+    ...Platform.select({
+      web: { textShadow: "0px 2px 8px rgba(0,0,0,0.15)" },
+      default: {
+        textShadowColor: "rgba(0,0,0,0.15)",
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 8,
+      },
+    }),
   },
   heroCondRow: {
     flexDirection: "row",
