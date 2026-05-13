@@ -18,6 +18,9 @@ import {
 import { useLanguage } from "./LanguageContext";
 import { io, type Socket } from "socket.io-client";
 import { API_BASE, SOCKET_BASE } from "@/utils/api";
+import { createLogger } from "@/utils/logger";
+
+const log = createLogger("[AuthContext]");
 
 export type UserRole = "customer" | "rider" | "vendor";
 
@@ -101,10 +104,14 @@ async function secureGet(key: string): Promise<string | null> {
 async function secureDelete(key: string) {
   try {
     await SecureStore.deleteItemAsync(key);
-  } catch {}
+  } catch (e) {
+    log.warn({ key, err: e }, "[auth] secureDelete: SecureStore removal failed (non-fatal — key may not exist)");
+  }
   try {
     await AsyncStorage.removeItem(key);
-  } catch {}
+  } catch (e) {
+    log.warn({ key, err: e }, "[auth] secureDelete: AsyncStorage removal failed (non-fatal)");
+  }
 }
 
 /* Migrate legacy AsyncStorage tokens to SecureStore and remove the unencrypted copies.

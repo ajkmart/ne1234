@@ -1,9 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { unwrapApiResponse } from "../utils/api";
+import { unwrapApiResponse, API_BASE } from "../utils/api";
 import { setDefaultMapCenter } from "../hooks/useMaps";
-
-const API_DOMAIN = process.env.EXPO_PUBLIC_DOMAIN ?? "";
 const CACHE_MS = 30_000;
 
 export interface PlatformConfig {
@@ -429,7 +427,7 @@ export function PlatformConfigProvider({ children }: { children: React.ReactNode
       const timeoutId = setTimeout(() => controller.abort(), 10_000);
       let res: Response;
       try {
-        res = await fetch(`https://${API_DOMAIN}/api/platform-config`, { cache: "no-store", signal: controller.signal });
+        res = await fetch(`${API_BASE}/platform-config`, { cache: "no-store", signal: controller.signal });
       } finally {
         clearTimeout(timeoutId);
       }

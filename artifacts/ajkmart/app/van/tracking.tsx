@@ -66,7 +66,10 @@ function handleMsg(e){
       vanCircle.setLatLng([d.lat,d.lng]);
       map.panTo([d.lat,d.lng]);
     }
-  }catch(x){}
+  }catch(x){
+    if(typeof console!=='undefined')
+      console.warn('[van-tracking] Failed to handle position message:',x instanceof Error?x.message:String(x));
+  }
 }
 window.addEventListener('message',handleMsg);
 document.addEventListener('message',handleMsg);
