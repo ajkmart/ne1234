@@ -76,6 +76,7 @@ interface AuthContextType {
     refreshToken?: string,
   ) => Promise<void>;
   attemptBiometricLogin: () => Promise<string | "transient_error" | null>;
+  refreshToken: () => Promise<string | null>;
   socket: Socket | null;
 }
 
@@ -660,6 +661,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await doLogout();
   };
 
+  const refreshToken = async (): Promise<string | null> => {
+    try {
+      const storedRefresh = await secureGet(REFRESH_TOKEN_KEY);
+      if (!storedRefresh) return null;
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken: storedRefresh }),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { token?: string; refreshToken?: string };
+      if (!data.token) return null;
+      setToken(data.token);
+      await secureSet(TOKEN_KEY, data.token);
+      setAuthTokenGetter(() => data.token!);
+      if (data.refreshToken) {
+        await secureSet(REFRESH_TOKEN_KEY, data.refreshToken);
+        setRefreshTokenGetter(() => data.refreshToken!);
+      }
+      return data.token;
+    } catch {
+      return null;
+    }
+  };
+
   const setBiometricEnabled = async (enabled: boolean) => {
     setBiometricEnabledState(enabled);
     await AsyncStorage.setItem(BIOMETRIC_KEY, enabled ? "true" : "false");
@@ -829,6 +855,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTwoFactorPending,
         completeTwoFactorLogin,
         attemptBiometricLogin,
+        refreshToken,
         socket: socketState,
       }}
     >

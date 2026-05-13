@@ -35,6 +35,7 @@ import {
   useRoleGate,
   RoleBlockSheet,
 } from "@/components/AuthGateSheet";
+import { withErrorBoundary } from "@/utils/withErrorBoundary";
 
 const C = Colors.light;
 const HISTORY_KEY = "@ajkmart_search_history";

@@ -53,7 +53,7 @@ interface CallSignal {
 export default function ChatDetailScreen() {
   const { id, name, ajkId: otherAjkId, otherId } = useLocalSearchParams<{ id: string; name: string; ajkId: string; otherId: string }>();
   const insets = useSafeAreaInsets();
-  const { token, user } = useAuth();
+  const { token, user, refreshToken } = useAuth();
   const { showToast } = useToast();
   const { goBack } = useSmartBack();
 
@@ -74,14 +74,33 @@ export default function ChatDetailScreen() {
   const trickleIceRef = useRef<boolean>(true);
 
   const apiFetch = useCallback(async (path: string, opts: RequestInit = {}) => {
-    const res = await fetch(`${API_BASE}/communication${path}`, {
-      ...opts,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(opts.headers as Record<string, string>) },
-    });
+    const doRequest = async (authToken: string | null) =>
+      fetch(`${API_BASE}/communication${path}`, {
+        ...opts,
+        headers: {
+          "Content-Type": "application/json",
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          ...(opts.headers as Record<string, string>),
+        },
+      });
+
+    let res = await doRequest(token);
+
+    if (res.status === 401) {
+      const newToken = await refreshToken();
+      if (newToken) {
+        res = await doRequest(newToken);
+      }
+      if (res.status === 401) {
+        showToast("Session expired. Please sign in again.", "error");
+        throw new Error("Unauthorized");
+      }
+    }
+
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "Failed");
     return json.data !== undefined ? json.data : json;
-  }, [token]);
+  }, [token, refreshToken, showToast]);
 
   const cleanupPeerConnection = useCallback(() => {
     if (localStreamRef.current) {

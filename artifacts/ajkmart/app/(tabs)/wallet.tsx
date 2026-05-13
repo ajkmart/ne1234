@@ -1780,8 +1780,8 @@ function WalletScreenInner() {
     : txFilter === "debit"
     ? transactions.filter(isDebitTx)
     : transactions.filter(isCreditTx);
-  const totalIn      = transactions.filter(isCreditTx).reduce((s, t) => s + Number(t.amount), 0);
-  const totalOut     = transactions.filter(isDebitTx).reduce((s, t) => s + Number(t.amount), 0);
+  const totalIn      = transactions.filter(isCreditTx).reduce((s: number, t: WalletTx) => s + Number(t.amount), 0);
+  const totalOut     = transactions.filter(isDebitTx).reduce((s: number, t: WalletTx) => s + Number(t.amount), 0);
 
   /* Sanitize QR name — truncate to 30 chars to avoid over-dense codes */
   const qrName = (user?.name ?? "").slice(0, 30);
@@ -2047,7 +2047,7 @@ function WalletScreenInner() {
             </View>
           ) : (
             <View>
-              {filtered.map(tx => <TxItem key={tx.id} tx={tx} />)}
+              {filtered.map((tx: WalletTx) => <TxItem key={tx.id} tx={tx} />)}
             </View>
           )}
         </View>

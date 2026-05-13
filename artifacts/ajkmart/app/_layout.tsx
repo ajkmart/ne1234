@@ -1335,7 +1335,7 @@ function RootLayoutNav() {
   useEffect(() => {
     initErrorReporter();
     registerErrorHandler(reportErrorToBackend);
-    setOnApiError((url, status, message) => {
+    setOnApiError((url: string, status: number, message: string) => {
       reportErrorToBackend({
         errorType: "api_error",
         errorMessage: message,
@@ -1623,7 +1623,7 @@ export default function RootLayout() {
 
   const handleRetry = async () => {
     setRetrying(true);
-    const result = await probeApiHealth();
+    const result = await probeApiHealth(_domain);
     setApiUrl(result.url);
     if (result.reachable) {
       setApiReachable(true);

@@ -1,6 +1,28 @@
 export { typography, getTypography, getFontFamily } from "./colors";
 export type { } from "./colors";
 
+import { useLanguage } from "@/context/LanguageContext";
+import { useFontSize } from "@/context/FontSizeContext";
+import { getTypography as _getTypography } from "./colors";
+
+export function useScaledTypography() {
+  const { language } = useLanguage();
+  const { fontScale } = useFontSize();
+  const base = _getTypography(language);
+  if (fontScale === 1) return base;
+  const scaled: typeof base = {} as typeof base;
+  for (const key in base) {
+    const k = key as keyof typeof base;
+    const entry = base[k] as { fontFamily?: string; fontSize?: number; lineHeight?: number };
+    scaled[k] = {
+      ...entry,
+      ...(entry.fontSize != null ? { fontSize: Math.round(entry.fontSize * fontScale * 10) / 10 } : {}),
+      ...(entry.lineHeight != null ? { lineHeight: Math.round(entry.lineHeight * fontScale * 10) / 10 } : {}),
+    } as (typeof base)[typeof k];
+  }
+  return scaled;
+}
+
 export const T = {
   h1: { fontFamily: "Inter_700Bold" as const, fontSize: 28, lineHeight: 34 },
   h2: { fontFamily: "Inter_700Bold" as const, fontSize: 22, lineHeight: 28 },

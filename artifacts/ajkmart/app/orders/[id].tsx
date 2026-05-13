@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import Head from "expo-router/head";
 import { createLogger } from "@/utils/logger";
 const log = createLogger("[OrderDetail]");
+import { withErrorBoundary } from "@/utils/withErrorBoundary";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import React, {
@@ -456,6 +457,7 @@ function OrderDetailScreenInner() {
             "Socket.io load failed:",
             err instanceof Error ? err.message : String(err),
           );
+          if (mountedRef.current) setSocketDropped(true);
         });
     };
 
